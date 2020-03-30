@@ -1,5 +1,5 @@
 @echo off
-cd C:\Users\stasn\Desktop\NaturalSelectionSimulation-master
+cd C:\Users\stasn\Documents\GitHub\NaturalSelectionSimulation
 javac Delete.java
 java Delete
 javac Main.java
