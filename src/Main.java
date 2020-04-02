@@ -66,8 +66,8 @@ public class Main {
                 bacteria.add(new Bacterium(0, (float) (Math.random() * (W - 100) + 50), (float) (Math.random() * (H - 100) + 50)));
             milisecondsCount++;
             drawScene(g);
-            drawGraph(g);
             drawBacteriumAndFood(g);
+            drawGraph(g);
         }
 
         private void drawGraph(Graphics g) {
