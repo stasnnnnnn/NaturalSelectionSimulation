@@ -1,8 +1,5 @@
-import java.awt.*;
-
 public class Food {
-	
-    public int type;
+
     public float x;
     public float y;
     public boolean toBeDeleted;

@@ -8,7 +8,7 @@ public class Bacterium {
     public float tx;
     public float ty;
     public float food;
-	public int radius;
+    public int radius;
     public float speed = 0.5f;
     public float sightDistance = 100f;
     public float directionChangeRate = 0.01f;
@@ -22,6 +22,6 @@ public class Bacterium {
         this.tx = 0;
         this.ty = 0;
         this.food = 5f;
-		this.radius = 15;
+        this.radius = 15;
     }
 }
