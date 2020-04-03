@@ -2,6 +2,27 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 
+class Bacterium {
+    public int type;
+    public float x;
+    public float y;
+    public boolean toBeDeleted = false;
+    public int age = 0;
+    public float tx = 0;
+    public float ty = 0;
+    public float food = 1f;
+    public int radius = 10;
+    public float speed = 1f;
+    public float sightDistance = 100f;
+    public float directionChangeRate = 0.01f;
+
+    public Bacterium(int type, float x, float y) {
+        this.type = type;
+        this.x = x;
+        this.y = y;
+    }
+}
+
 public class Main {
     private final int W = 800;
     private final int H = 800;
@@ -9,14 +30,11 @@ public class Main {
     private final Color BLUE = new Color(0, 0, 255, 130);
     private final Color RED = new Color(255, 0, 0, 130);
     private final Color GREEN = new Color(0, 255, 0, 130);
-    private final Color BLACK = new Color(0, 0, 0, 130);
     private final Color[] COLORS = new Color[3];
     private ArrayList<Bacterium> bacteria = new ArrayList<>();
-    private ArrayList<Food> food = new ArrayList<>();
     private ArrayList<Integer> graph0 = new ArrayList<Integer>();
     private ArrayList<Integer> graph1 = new ArrayList<Integer>();
     private ArrayList<Integer> graph2 = new ArrayList<Integer>();
-    private final int FOOD_RADIUS = 5;
     private int milisecondsCount = 0;
 
     public static void main(String[] args) {
@@ -29,9 +47,9 @@ public class Main {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException ex) {
             }
-            COLORS[0] = BLUE;
-            COLORS[1] = RED;
-            COLORS[2] = BLACK;
+            COLORS[0] = GREEN;
+            COLORS[1] = BLUE;
+            COLORS[2] = RED;
             JFrame frame = new JFrame("Main");
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setLayout(new BorderLayout());
@@ -60,8 +78,6 @@ public class Main {
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             logic();
-            Food a = new Food((float) (Math.random() * (W - 100) + 50), (float) (Math.random() * (H - 100) + 50));
-            food.add(a);
             if (milisecondsCount % 10000 == 0)
                 bacteria.add(new Bacterium(0, (float) (Math.random() * (W - 100) + 50), (float) (Math.random() * (H - 100) + 50)));
             milisecondsCount++;
@@ -75,15 +91,15 @@ public class Main {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
             if (bacteria.size() > 0) {
                 for (int i = 0; i < graph0.size(); i++) {
-                    g2.setColor(BLUE);
+                    g2.setColor(GREEN);
                     g2.fillRect(i, H - graph0.get(i) / 4 - 1, 1, graph0.get(i) / 4);
-                    g2.setColor(RED);
+                    g2.setColor(BLUE);
                     g2.fillRect(i, H - graph1.get(i) / 4 - 250, 1, graph1.get(i) / 4);
-                    g2.setColor(BLACK);
+                    g2.setColor(RED);
                     g2.fillRect(i, H - graph2.get(i) / 4 - 500, 1, graph2.get(i) / 4);
                 }
                 if ((milisecondsCount % 100) == 0) {
-                    if(graph0.size()>800){
+                    if (graph0.size() > 800) {
                         graph0.clear();
                         graph1.clear();
                         graph2.clear();
@@ -105,10 +121,6 @@ public class Main {
         private void drawBacteriumAndFood(Graphics g) {
             Graphics2D g2 = (Graphics2D) g;
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            for (Food a : food) {
-                g2.setColor(GREEN);
-                g2.fillOval((int) a.x - FOOD_RADIUS, (int) a.y - FOOD_RADIUS, FOOD_RADIUS * 2, FOOD_RADIUS * 2);
-            }
             for (Bacterium a : bacteria) {
                 g2.setColor(COLORS[a.type]);
                 g2.fillOval((int) a.x - a.radius, (int) a.y - a.radius, a.radius * 2, a.radius * 2);
@@ -125,18 +137,6 @@ public class Main {
                 if (a.y < 0) a.y += 1;
                 else if (a.y > H) a.y -= 1;
                 if (a.type == 0) {
-                    Food closestFood = null;
-                    float minFoodDist = (W * W) + (H * H);
-                    for (Food f : food) {
-                        if (f.toBeDeleted) continue;
-                        float distZeroFood = (a.x - f.x) * (a.x - f.x) + (a.y - f.y) * (a.y - f.y);
-                        if (distZeroFood < a.sightDistance * a.sightDistance) {
-                            if (distZeroFood < minFoodDist) {
-                                minFoodDist = distZeroFood;
-                                closestFood = f;
-                            }
-                        }
-                    }
                     Bacterium closestEnemy = null;
                     float minEnemyDist = (W * W) + (H * H);
                     for (Bacterium b : bacteria) {
@@ -154,21 +154,10 @@ public class Main {
                         a.tx = -closestEnemy.x + a.x;
                         a.ty = -closestEnemy.y + a.y;
                     } else {
-                        if (closestFood != null) {
-                            a.tx = closestFood.x - a.x;
-                            a.ty = closestFood.y - a.y;
-                            if (minFoodDist < a.radius * a.radius) {
-                                closestFood.toBeDeleted = true;
-                                a.food++;
-                            }
-                        } else {
-                            if (Math.random() < a.directionChangeRate) {
-                                double randomAngle = Math.random() * Math.PI * 2;
-                                a.tx = (float) Math.cos(randomAngle) * 2;
-                                a.ty = (float) Math.sin(randomAngle) * 2;
-                            }
-                        }
+                        a.tx = (float) (Math.random() - 0.5f);
+                        a.ty = (float) (Math.random() - 0.5f);
                     }
+                    a.food += 0.01f;
                 }
                 if (a.type == 1) {
                     Bacterium closestFood = null;
@@ -302,12 +291,6 @@ public class Main {
                 }
                 if (a.toBeDeleted) {
                     bacteria.remove(i);
-                    i--;
-                }
-            }
-            for (int i = 0; i < food.size(); i++) {
-                if (food.get(i).toBeDeleted) {
-                    food.remove(i);
                     i--;
                 }
             }
