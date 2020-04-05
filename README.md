@@ -1,5 +1,6 @@
 # Natural Selection Simulation
 
-There are three kinds of creatures. The first species eats food that appears in a random place and run away from the second species. The second species preys on the first species and flees from the third species. The third species prefers to hunt for the second species, but can eat the first species if the second species is not nearby. Having eaten a certain amount of food the creature is divided. Each species can randomly change according to the scheme 1 -> 2, 2 -> 3, 3 -> 1 with a decrease in size, increase in speed and power consumption.
+Experiments with simulation of natural selection.
 
-![image](https://user-images.githubusercontent.com/21002038/78293259-fa832480-7530-11ea-8d53-b5a5a21dacd0.png)
+![image](https://user-images.githubusercontent.com/21002038/78466942-08db6700-7710-11ea-81e1-defe7f444a31.png)
+
