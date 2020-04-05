@@ -27,10 +27,10 @@ public class Main {
     final float maxHealth = 3f;
     final float sightDistance = 100f;
     final float directionChangeRate = 0.01f;
-    final float radiusEntity = 8f;
+    final float radiusEntity = 10f;
     final float chanceMutation = 0.0001f;
-    final float coefFoodChange = 0.0001f;
-    final float coefFoodIncrease = 0.002f;
+    final float coefHealthChange = 0.0001f;
+    final float coefHealthIncrease = 0.002f;
     ArrayList<Entity> entities = new ArrayList<>();
     int countCycles = 0;
 
@@ -56,7 +56,7 @@ public class Main {
 
     public class FormPane extends JPanel {
         public FormPane() {
-            entities.add(new Entity((float) (Math.random() * (W - 100) + 50), (float) (Math.random() * (H - 100) + 50)));
+            entities.add(new Entity((float) (Math.random() * (W)), (float) (Math.random() * (H))));
             Timer timer = new Timer(1, e -> repaint());
             timer.start();
         }
@@ -76,6 +76,8 @@ public class Main {
         private void draw(Graphics g) {
             Graphics2D g2 = (Graphics2D) g;
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(new Color(255, 255, 255, 255));
+            g2.fillRect(0, 0, W, H);
             g2.setColor(new Color(0, 0, 0, 255));
             g2.drawString("Count cycles: " + Float.toString(countCycles), 50, 250);
             g2.drawString("Count entities: " + Float.toString(entities.size()), 50, 200);
@@ -99,12 +101,12 @@ public class Main {
             for (int i = 0; i < entities.size(); i++) {
                 Entity a = entities.get(i);
                 double targetAngle = Math.atan2(a.ty, a.tx);
-                a.x += (float) Math.cos(targetAngle) * a.speed + Math.random() - 0.5f;
-                a.y += (float) Math.sin(targetAngle) * a.speed + Math.random() - 0.5f;
-                if (a.x < 0) a.x += 1;
-                else if (a.x > W) a.x -= 1;
-                if (a.y < 0) a.y += 1;
-                else if (a.y > H) a.y -= 1;
+                a.x += (float) Math.cos(targetAngle) * a.speed;
+                a.y += (float) Math.sin(targetAngle) * a.speed;
+                if (a.x < 0) a.x = W;
+                else if (a.x > W) a.x = 0;
+                if (a.y < 0) a.y = H;
+                else if (a.y > H) a.y = 0;
                 Entity closestFood = null;
                 int indexClosestFood = 0;
                 float minFoodDist = (W * W) + (H * H);
@@ -112,7 +114,11 @@ public class Main {
                     Entity b = entities.get(j);
                     if (b.force >= a.force) continue;
                     if (b.speed >= a.speed) continue;
-                    float dist = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+                    float dist1 = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+                    float dist2 = (W - (a.x - b.x)) * (W - (a.x - b.x)) + (a.y - b.y) * (a.y - b.y);
+                    float dist3 = (a.x - b.x) * (a.x - b.x) + (H - (a.y - b.y)) * (H - (a.y - b.y));
+                    float dist4 = (W - (a.x - b.x)) * (W - (a.x - b.x)) + (H - (a.y - b.y)) * (H - (a.y - b.y));
+                    float dist = Math.min(Math.min(dist1, dist2), Math.min(dist3, dist4));
                     if (dist < sightDistance * sightDistance) {
                         if (dist < minFoodDist) {
                             minFoodDist = dist;
@@ -127,7 +133,11 @@ public class Main {
                     Entity b = entities.get(j);
                     if (b.force <= a.force) continue;
                     if (b.speed <= a.speed) continue;
-                    float dist = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+                    float dist1 = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+                    float dist2 = (W - (a.x - b.x)) * (W - (a.x - b.x)) + (a.y - b.y) * (a.y - b.y);
+                    float dist3 = (a.x - b.x) * (a.x - b.x) + (H - (a.y - b.y)) * (H - (a.y - b.y));
+                    float dist4 = (W - (a.x - b.x)) * (W - (a.x - b.x)) + (H - (a.y - b.y)) * (H - (a.y - b.y));
+                    float dist = Math.min(Math.min(dist1, dist2), Math.min(dist3, dist4));
                     if (dist < sightDistance * sightDistance) {
                         if (dist < minEnemyDist) {
                             minEnemyDist = dist;
@@ -136,20 +146,32 @@ public class Main {
                     }
                 }
                 if (minFoodDist > minEnemyDist & closestEnemy != null) {
-                    a.tx = -closestEnemy.x + a.x;
-                    a.ty = -closestEnemy.y + a.y;
+                    if (Math.abs(closestEnemy.x - a.x) > sightDistance)
+                        a.tx = closestEnemy.x - a.x;
+                    else
+                        a.tx = -closestEnemy.x + a.x;
+                    if (Math.abs(closestEnemy.y - a.y) > sightDistance)
+                        a.ty = closestEnemy.y - a.y;
+                    else
+                        a.ty = -closestEnemy.y + a.y;
                 } else {
                     if (closestFood != null) {
-                        a.tx = closestFood.x - a.x;
-                        a.ty = closestFood.y - a.y;
+                        if (Math.abs(closestFood.x - a.x) > sightDistance)
+                            a.tx = -closestFood.x + a.x;
+                        else
+                            a.tx = closestFood.x - a.x;
+                        if (Math.abs(closestFood.y - a.y) > sightDistance)
+                            a.ty = -closestFood.y + a.y;
+                        else
+                            a.ty = closestFood.y - a.y;
                         if (minFoodDist < radiusEntity * radiusEntity) {
                             if (closestFood.intelligence + closestFood.force > a.intelligence + a.force) {
-                                closestFood.health *= 1 - (a.intelligence + a.force) / (closestFood.intelligence + closestFood.force);
+                                closestFood.health *= 1 - ((a.intelligence + a.force) / (closestFood.intelligence + closestFood.force)) * ((a.intelligence + a.force) / (closestFood.intelligence + closestFood.force));
                                 closestFood.health += a.health;
                                 entities.remove(i);
                                 i--;
                             } else {
-                                a.health *= 1 - closestFood.force / a.force;
+                                a.health *= 1 - (closestFood.force / a.force) * (closestFood.force / a.force);
                                 a.health += closestFood.health;
                                 entities.remove(indexClosestFood);
                                 if (indexClosestFood < i)
@@ -164,7 +186,7 @@ public class Main {
                         }
                     }
                 }
-                a.health += coefFoodIncrease;
+                a.health += coefHealthIncrease;
                 if (a.health >= maxHealth) {
                     a.health = 1f;
                     Entity b = new Entity(a.x + (float) Math.random() * 10 - 5, a.y + (float) Math.random() * 10 - 5);
@@ -184,9 +206,9 @@ public class Main {
                     if (a.intelligence >= 1)
                         a.intelligence = 0.999999f;
                 }
-                a.health -= (1 / (1 - a.speed)) * coefFoodChange;
-                a.health -= (1 / (1 - a.intelligence)) * coefFoodChange;
-                a.health -= (1 / (1 - a.force)) * coefFoodChange;
+                a.health -= (1 / (1 - a.speed)) * coefHealthChange;
+                a.health -= (1 / (1 - a.intelligence)) * coefHealthChange;
+                a.health -= (1 / (1 - a.force)) * coefHealthChange;
 
                 if (a.health <= 0) {
                     entities.remove(i);
