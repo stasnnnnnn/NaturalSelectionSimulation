@@ -2,40 +2,37 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 
-class Bacterium {
-    public int type;
+class Entity  {
     public float x;
     public float y;
-    public boolean toBeDeleted = false;
-    public int age = 0;
     public float tx = 0;
     public float ty = 0;
-    public float food = 1f;
-    public int radius = 10;
-    public float speed = 1f;
-    public float sightDistance = 100f;
-    public float directionChangeRate = 0.01f;
+    public float health = 1f;
+    public float speed = 0.5f;
+    public float force = 0.5f;
+    public float intelligence = 0.5f;
 
-    public Bacterium(int type, float x, float y) {
-        this.type = type;
+    public Entity (float x, float y) {
         this.x = x;
         this.y = y;
     }
 }
 
 public class Main {
-    private final int W = 800;
-    private final int H = 800;
-    private final Color BG = new Color(255, 255, 255, 255);
-    private final Color BLUE = new Color(0, 0, 255, 130);
-    private final Color RED = new Color(255, 0, 0, 130);
-    private final Color GREEN = new Color(0, 255, 0, 130);
-    private final Color[] COLORS = new Color[3];
-    private ArrayList<Bacterium> bacteria = new ArrayList<>();
-    private ArrayList<Integer> graph0 = new ArrayList<Integer>();
-    private ArrayList<Integer> graph1 = new ArrayList<Integer>();
-    private ArrayList<Integer> graph2 = new ArrayList<Integer>();
-    private int milisecondsCount = 0;
+    final int W = 800;
+    final int H = 800;
+    float sumForce;
+    float sumSpeed;
+    float sumIntelligence;
+    final float maxHealth = 3f;
+    final float sightDistance = 100f;
+    final float directionChangeRate = 0.01f;
+    final float radiusEntity = 8f;
+    final float chanceMutation = 0.0001f;
+    final float coefFoodChange = 0.0001f;
+    final float coefFoodIncrease = 0.002f;
+    ArrayList<Entity> entities = new ArrayList<>();
+    int countCycles = 0;
 
     public static void main(String[] args) {
         new Main();
@@ -47,10 +44,7 @@ public class Main {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException ex) {
             }
-            COLORS[0] = GREEN;
-            COLORS[1] = BLUE;
-            COLORS[2] = RED;
-            JFrame frame = new JFrame("Main");
+            JFrame frame = new JFrame();
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
             frame.setLayout(new BorderLayout());
             frame.add(new FormPane());
@@ -61,11 +55,9 @@ public class Main {
     }
 
     public class FormPane extends JPanel {
-
         public FormPane() {
-            Timer timer = new Timer(1, e -> {
-                repaint();
-            });
+            entities.add(new Entity((float) (Math.random() * (W - 100) + 50), (float) (Math.random() * (H - 100) + 50)));
+            Timer timer = new Timer(1, e -> repaint());
             timer.start();
         }
 
@@ -78,57 +70,34 @@ public class Main {
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             logic();
-            if (milisecondsCount % 10000 == 0)
-                bacteria.add(new Bacterium(0, (float) (Math.random() * (W - 100) + 50), (float) (Math.random() * (H - 100) + 50)));
-            milisecondsCount++;
-            drawScene(g);
-            drawBacteriumAndFood(g);
-            drawGraph(g);
+            draw(g);
         }
 
-        private void drawGraph(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g;
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-            if (bacteria.size() > 0) {
-                for (int i = 0; i < graph0.size(); i++) {
-                    g2.setColor(GREEN);
-                    g2.fillRect(i, H - graph0.get(i) / 4 - 1, 1, graph0.get(i) / 4);
-                    g2.setColor(BLUE);
-                    g2.fillRect(i, H - graph1.get(i) / 4 - 250, 1, graph1.get(i) / 4);
-                    g2.setColor(RED);
-                    g2.fillRect(i, H - graph2.get(i) / 4 - 500, 1, graph2.get(i) / 4);
-                }
-                if ((milisecondsCount % 100) == 0) {
-                    if (graph0.size() > 800) {
-                        graph0.clear();
-                        graph1.clear();
-                        graph2.clear();
-                    }
-                    graph0.add((int) bacteria.stream().filter(a -> a.type == 0).count());
-                    graph1.add((int) bacteria.stream().filter(a -> a.type == 1).count());
-                    graph2.add((int) bacteria.stream().filter(a -> a.type == 2).count());
-                }
-            }
-        }
-
-        private void drawScene(Graphics g) {
+        private void draw(Graphics g) {
             Graphics2D g2 = (Graphics2D) g;
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(BG);
-            g2.fillRect(0, 0, W, H);
-        }
-
-        private void drawBacteriumAndFood(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g;
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            for (Bacterium a : bacteria) {
-                g2.setColor(COLORS[a.type]);
-                g2.fillOval((int) a.x - a.radius, (int) a.y - a.radius, a.radius * 2, a.radius * 2);
+            g2.setColor(new Color(0, 0, 0, 255));
+            g2.drawString("Count cycles: " + Float.toString(countCycles), 50, 250);
+            g2.drawString("Count entities: " + Float.toString(entities.size()), 50, 200);
+            g2.setColor(new Color(255, 0, 0, 255));
+            g2.drawString("Average force: " + Float.toString(sumForce / entities.size()), 50, 150);
+            g2.setColor(new Color(0, 255, 0, 255));
+            g2.drawString("Average speed: " + Float.toString(sumSpeed / entities.size()), 50, 100);
+            g2.setColor(new Color(0, 0, 255, 255));
+            g2.drawString("Average intelligence: " + Float.toString(sumIntelligence / entities.size()), 50, 50);
+            for (Entity a : entities) {
+                g2.setColor(new Color(Math.round(a.force * 255), Math.round(a.speed * 255), Math.round(a.intelligence * 255), 130));
+                g2.fillOval((int) (a.x - radiusEntity * Math.sqrt(a.health)), (int) (a.y - radiusEntity * Math.sqrt(a.health)), (int) (radiusEntity * Math.sqrt(a.health) * 2), (int) (radiusEntity * Math.sqrt(a.health)) * 2);
             }
         }
 
         private void logic() {
-            for (Bacterium a : bacteria) {
+            countCycles++;
+            sumForce = 0;
+            sumSpeed = 0;
+            sumIntelligence = 0;
+            for (int i = 0; i < entities.size(); i++) {
+                Entity a = entities.get(i);
                 double targetAngle = Math.atan2(a.ty, a.tx);
                 a.x += (float) Math.cos(targetAngle) * a.speed + Math.random() - 0.5f;
                 a.y += (float) Math.sin(targetAngle) * a.speed + Math.random() - 0.5f;
@@ -136,163 +105,96 @@ public class Main {
                 else if (a.x > W) a.x -= 1;
                 if (a.y < 0) a.y += 1;
                 else if (a.y > H) a.y -= 1;
-                if (a.type == 0) {
-                    Bacterium closestEnemy = null;
-                    float minEnemyDist = (W * W) + (H * H);
-                    for (Bacterium b : bacteria) {
-                        if (b.type == 0) continue;
-                        if (b.speed < a.speed) continue;
-                        float distZeroEnemy = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-                        if (distZeroEnemy < a.sightDistance * a.sightDistance) {
-                            if (distZeroEnemy < minEnemyDist) {
-                                minEnemyDist = distZeroEnemy;
-                                closestEnemy = b;
-                            }
-                        }
-                    }
-                    if (closestEnemy != null) {
-                        a.tx = -closestEnemy.x + a.x;
-                        a.ty = -closestEnemy.y + a.y;
-                    } else {
-                        a.tx = (float) (Math.random() - 0.5f);
-                        a.ty = (float) (Math.random() - 0.5f);
-                    }
-                    a.food += 0.01f;
-                }
-                if (a.type == 1) {
-                    Bacterium closestFood = null;
-                    float minFoodDist = (W * W) + (H * H);
-                    for (Bacterium b : bacteria) {
-                        if (b.toBeDeleted) continue;
-                        if (b.type == 1) continue;
-                        if (b.type == 2) continue;
-                        if (b.speed > a.speed) continue;
-                        float distOneZero = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-                        if (distOneZero < a.sightDistance * a.sightDistance) {
-                            if (distOneZero < minFoodDist) {
-                                minFoodDist = distOneZero;
-                                closestFood = b;
-                            }
-                        }
-                    }
-                    Bacterium closestEnemy = null;
-                    float minEnemyDist = (W * W) + (H * H);
-                    for (Bacterium b : bacteria) {
-                        if (b.type == 0) continue;
-                        if (b.type == 1) continue;
-                        if (b.speed < a.speed) continue;
-                        float distZeroEnemy = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-                        if (distZeroEnemy < a.sightDistance * a.sightDistance) {
-                            if (distZeroEnemy < minEnemyDist) {
-                                minEnemyDist = distZeroEnemy;
-                                closestEnemy = b;
-                            }
-                        }
-                    }
-                    if (closestEnemy != null) {
-                        a.tx = -closestEnemy.x + a.x;
-                        a.ty = -closestEnemy.y + a.y;
-                    } else {
-                        if (closestFood != null) {
-                            a.tx = closestFood.x - a.x;
-                            a.ty = closestFood.y - a.y;
-                            if (minFoodDist < a.radius * a.radius) {
-                                closestFood.toBeDeleted = true;
-                                a.food += closestFood.food * 0.5f;
-                            }
-                        } else {
-                            if (Math.random() < a.directionChangeRate) {
-                                double randomAngle = Math.random() * Math.PI * 2;
-                                a.tx = (float) Math.cos(randomAngle) * 2;
-                                a.ty = (float) Math.sin(randomAngle) * 2;
-                            }
+                Entity closestFood = null;
+                int indexClosestFood = 0;
+                float minFoodDist = (W * W) + (H * H);
+                for (int j = 0; j < entities.size(); j++) {
+                    Entity b = entities.get(j);
+                    if (b.force >= a.force) continue;
+                    if (b.speed >= a.speed) continue;
+                    float dist = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+                    if (dist < sightDistance * sightDistance) {
+                        if (dist < minFoodDist) {
+                            minFoodDist = dist;
+                            closestFood = b;
+                            indexClosestFood = j;
                         }
                     }
                 }
-                if (a.type == 2) {
-                    Bacterium closestFoodOne = null;
-                    Bacterium closestFoodZero = null;
-                    float minFoodDistOne = (W * W) + (H * H);
-                    float minFoodDistZero = (W * W) + (H * H);
-                    for (Bacterium b : bacteria) {
-                        if (b.toBeDeleted) continue;
-                        if (b.type == 2) continue;
-                        if (b.speed > a.speed) continue;
-                        float distTwoOne = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-                        float distTwoZero = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-                        if (b.type == 1) {
-                            if (distTwoOne < a.sightDistance * a.sightDistance) {
-                                if (distTwoOne < minFoodDistOne) {
-                                    minFoodDistOne = distTwoOne;
-                                    closestFoodOne = b;
-                                }
-                            }
-                        } else {
-                            if (distTwoZero < a.sightDistance * a.sightDistance) {
-                                if (distTwoZero < minFoodDistZero) {
-                                    minFoodDistZero = distTwoZero;
-                                    closestFoodZero = b;
-                                }
-                            }
+                Entity closestEnemy = null;
+                float minEnemyDist = (W * W) + (H * H);
+                for (int j = 0; j < entities.size(); j++) {
+                    Entity b = entities.get(j);
+                    if (b.force <= a.force) continue;
+                    if (b.speed <= a.speed) continue;
+                    float dist = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+                    if (dist < sightDistance * sightDistance) {
+                        if (dist < minEnemyDist) {
+                            minEnemyDist = dist;
+                            closestEnemy = b;
                         }
                     }
-                    if (closestFoodOne != null) {
-                        a.tx = closestFoodOne.x - a.x;
-                        a.ty = closestFoodOne.y - a.y;
-                        if (minFoodDistOne < a.radius * a.radius + a.radius * a.radius) {
-                            closestFoodOne.toBeDeleted = true;
-                            a.food += closestFoodOne.food * 0.5f;
-                        }
-                    } else if (closestFoodZero != null) {
-                        a.tx = closestFoodZero.x - a.x;
-                        a.ty = closestFoodZero.y - a.y;
-                        if (minFoodDistZero < a.radius * a.radius + a.radius * a.radius) {
-                            closestFoodZero.toBeDeleted = true;
-                            a.food += closestFoodZero.food * 0.25f;
+                }
+                if (minFoodDist > minEnemyDist & closestEnemy != null) {
+                    a.tx = -closestEnemy.x + a.x;
+                    a.ty = -closestEnemy.y + a.y;
+                } else {
+                    if (closestFood != null) {
+                        a.tx = closestFood.x - a.x;
+                        a.ty = closestFood.y - a.y;
+                        if (minFoodDist < radiusEntity * radiusEntity) {
+                            if (closestFood.intelligence + closestFood.force > a.intelligence + a.force) {
+                                closestFood.health *= 1 - (a.intelligence + a.force) / (closestFood.intelligence + closestFood.force);
+                                closestFood.health += a.health;
+                                entities.remove(i);
+                                i--;
+                            } else {
+                                a.health *= 1 - closestFood.force / a.force;
+                                a.health += closestFood.health;
+                                entities.remove(indexClosestFood);
+                                if (indexClosestFood < i)
+                                    i--;
+                            }
                         }
                     } else {
-                        if (Math.random() < a.directionChangeRate) {
+                        if (Math.random() < directionChangeRate) {
                             double randomAngle = Math.random() * Math.PI * 2;
                             a.tx = (float) Math.cos(randomAngle) * 2;
                             a.ty = (float) Math.sin(randomAngle) * 2;
                         }
                     }
                 }
-            }
-            for (int i = 0; i < bacteria.size(); i++) {
-                Bacterium a = bacteria.get(i);
-                if (a.food >= 10) {
-                    a.food -= 5;
-                    Bacterium b = new Bacterium(a.type, a.x + (float) Math.random() * 10 - 5, a.y + (float) Math.random() * 10 - 5);
+                a.health += coefFoodIncrease;
+                if (a.health >= maxHealth) {
+                    a.health = 1f;
+                    Entity b = new Entity(a.x + (float) Math.random() * 10 - 5, a.y + (float) Math.random() * 10 - 5);
                     b.speed = a.speed;
-                    b.radius = a.radius;
-                    bacteria.add(b);
+                    b.force = a.force;
+                    b.intelligence = a.intelligence;
+                    entities.add(b);
                 }
-                if (Math.random() < 0.00001) {
-                    a.speed = a.speed * 1.1f;
-                    if (a.radius > 6) a.radius--;
-                    if (a.type == 0) {
-                        a.type = 1;
-                        continue;
-                    }
-                    if (a.type == 1) {
-                        a.type = 2;
-                        continue;
-                    }
-                    if (a.type == 2) {
-                        a.type = 0;
-                        continue;
-                    }
+                if (Math.random() < chanceMutation) {
+                    a.speed = (float) (a.speed * (Math.random() / 5 + 0.9f));
+                    if (a.speed >= 1)
+                        a.speed = 0.999999f;
+                    a.force = (float) (a.force * (Math.random() / 5 + 0.9f));
+                    if (a.force >= 1)
+                        a.force = 0.999999f;
+                    a.intelligence = (float) (a.intelligence * (Math.random() / 5 + 0.9f));
+                    if (a.intelligence >= 1)
+                        a.intelligence = 0.999999f;
                 }
-                if (a.food <= 0) a.toBeDeleted = true;
-                else {
-                    if (a.age % 500 == 499) a.food -= a.speed;
-                    a.age++;
-                }
-                if (a.toBeDeleted) {
-                    bacteria.remove(i);
+                a.health -= (1 / (1 - a.speed)) * coefFoodChange;
+                a.health -= (1 / (1 - a.intelligence)) * coefFoodChange;
+                a.health -= (1 / (1 - a.force)) * coefFoodChange;
+
+                if (a.health <= 0) {
+                    entities.remove(i);
                     i--;
                 }
+                sumForce += a.force;
+                sumSpeed += a.speed;
+                sumIntelligence += a.intelligence;
             }
         }
     }
