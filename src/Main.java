@@ -10,7 +10,12 @@ class Entity  {
     public float health = 1f;
     public float speed = 0.5f;
     public float force = 0.5f;
-    public float intelligence = 0.5f;
+    public float agility = 0.5f;
+    public float stamina = 0.5f;
+    public boolean useStamina = false;
+    public float predator = 0f;
+    public float accumulatedStamina = 0f;
+
 
     public Entity (float x, float y) {
         this.x = x;
@@ -23,14 +28,16 @@ public class Main {
     final int H = 800;
     float sumForce;
     float sumSpeed;
-    float sumIntelligence;
+    float sumAgility;
+    float sumStamina;
+    float sumPredator;
     final float maxHealth = 3f;
     final float sightDistance = 100f;
     final float directionChangeRate = 0.01f;
     final float radiusEntity = 10f;
     final float chanceMutation = 0.0001f;
-    final float coefHealthChange = 0.0001f;
-    final float coefHealthIncrease = 0.002f;
+    final float coefHealthChange = 0.00015f;
+    final float coefHealthIncrease = 0.001f;
     ArrayList<Entity> entities = new ArrayList<>();
     int countCycles = 0;
 
@@ -79,16 +86,23 @@ public class Main {
             g2.setColor(new Color(255, 255, 255, 255));
             g2.fillRect(0, 0, W, H);
             g2.setColor(new Color(0, 0, 0, 255));
-            g2.drawString("Count cycles: " + Float.toString(countCycles), 50, 250);
-            g2.drawString("Count entities: " + Float.toString(entities.size()), 50, 200);
+            g2.drawString("Count cycles: " + Float.toString(countCycles), 50, 50);
+            g2.drawString("Count entities: " + Float.toString(entities.size()), 50, 100);
             g2.setColor(new Color(255, 0, 0, 255));
             g2.drawString("Average force: " + Float.toString(sumForce / entities.size()), 50, 150);
             g2.setColor(new Color(0, 255, 0, 255));
-            g2.drawString("Average speed: " + Float.toString(sumSpeed / entities.size()), 50, 100);
+            g2.drawString("Average speed: " + Float.toString(sumSpeed / entities.size()), 50, 200);
             g2.setColor(new Color(0, 0, 255, 255));
-            g2.drawString("Average intelligence: " + Float.toString(sumIntelligence / entities.size()), 50, 50);
+            g2.drawString("Average stamina: " + Float.toString(sumStamina / entities.size()), 50, 250);
+            g2.setColor(new Color(0, 0, 0, 255));
+            g2.drawString("Average agility: " + Float.toString(sumAgility / entities.size()), 50, 300);
+            g2.drawString("Average predator: " + Float.toString(sumPredator / entities.size()), 50, 350);
             for (Entity a : entities) {
-                g2.setColor(new Color(Math.round(a.force * 255), Math.round(a.speed * 255), Math.round(a.intelligence * 255), 130));
+                if (a.predator == 1f) {
+                    g2.setColor(new Color(0, 0, 0, 255));
+                    g2.drawOval((int) (a.x - radiusEntity * Math.sqrt(a.health)), (int) (a.y - radiusEntity * Math.sqrt(a.health)), (int) (radiusEntity * Math.sqrt(a.health) * 2), (int) (radiusEntity * Math.sqrt(a.health)) * 2);
+                }
+                g2.setColor(new Color(Math.round(a.force * 255), Math.round(a.speed * 255), Math.round(a.stamina * 255), 130));
                 g2.fillOval((int) (a.x - radiusEntity * Math.sqrt(a.health)), (int) (a.y - radiusEntity * Math.sqrt(a.health)), (int) (radiusEntity * Math.sqrt(a.health) * 2), (int) (radiusEntity * Math.sqrt(a.health)) * 2);
             }
         }
@@ -97,12 +111,22 @@ public class Main {
             countCycles++;
             sumForce = 0;
             sumSpeed = 0;
-            sumIntelligence = 0;
+            sumStamina = 0;
+            sumAgility = 0;
+            sumPredator = 0;
             for (int i = 0; i < entities.size(); i++) {
                 Entity a = entities.get(i);
                 double targetAngle = Math.atan2(a.ty, a.tx);
-                a.x += (float) Math.cos(targetAngle) * a.speed;
-                a.y += (float) Math.sin(targetAngle) * a.speed;
+                if (a.useStamina & a.accumulatedStamina > ((1 / (1 - a.stamina)) - 1) * 128) {
+                    a.x += (float) Math.cos(targetAngle) * a.speed;
+                    a.y += (float) Math.sin(targetAngle) * a.speed;
+                    a.accumulatedStamina--;
+                } else {
+                    a.x += (float) Math.cos(targetAngle) * a.speed / 2;
+                    a.y += (float) Math.sin(targetAngle) * a.speed / 2;
+                    if (a.accumulatedStamina < ((1 / (1 - a.stamina)) - 1) * 1024)
+                        a.accumulatedStamina += a.stamina;
+                }
                 if (a.x < 0) a.x = W;
                 else if (a.x > W) a.x = 0;
                 if (a.y < 0) a.y = H;
@@ -112,12 +136,13 @@ public class Main {
                 float minFoodDist = (W * W) + (H * H);
                 for (int j = 0; j < entities.size(); j++) {
                     Entity b = entities.get(j);
+                    if (a.predator == 0f) continue;
                     if (b.force >= a.force) continue;
-                    if (b.speed >= a.speed) continue;
+                    if (b.speed >= a.speed & a.accumulatedStamina < ((1 / (1 - a.stamina)) - 1) * 128) continue;
                     float dist1 = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-                    float dist2 = (W - (a.x - b.x)) * (W - (a.x - b.x)) + (a.y - b.y) * (a.y - b.y);
-                    float dist3 = (a.x - b.x) * (a.x - b.x) + (H - (a.y - b.y)) * (H - (a.y - b.y));
-                    float dist4 = (W - (a.x - b.x)) * (W - (a.x - b.x)) + (H - (a.y - b.y)) * (H - (a.y - b.y));
+                    float dist2 = (W - Math.abs(a.x - b.x)) * (W - Math.abs(a.x - b.x)) + (a.y - b.y) * (a.y - b.y);
+                    float dist3 = (a.x - b.x) * (a.x - b.x) + (H - Math.abs(a.y - b.y)) * (H - Math.abs(a.y - b.y));
+                    float dist4 = (W - Math.abs(a.x - b.x)) * (W - Math.abs(a.x - b.x)) + (H - Math.abs(a.y - b.y)) * (H - Math.abs(a.y - b.y));
                     float dist = Math.min(Math.min(dist1, dist2), Math.min(dist3, dist4));
                     if (dist < sightDistance * sightDistance) {
                         if (dist < minFoodDist) {
@@ -131,12 +156,13 @@ public class Main {
                 float minEnemyDist = (W * W) + (H * H);
                 for (int j = 0; j < entities.size(); j++) {
                     Entity b = entities.get(j);
+                    if (b.predator == 0f) continue;
                     if (b.force <= a.force) continue;
-                    if (b.speed <= a.speed) continue;
+                    if (b.speed <= a.speed & b.accumulatedStamina < ((1 / (1 - a.stamina)) - 1) * 128) continue;
                     float dist1 = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-                    float dist2 = (W - (a.x - b.x)) * (W - (a.x - b.x)) + (a.y - b.y) * (a.y - b.y);
-                    float dist3 = (a.x - b.x) * (a.x - b.x) + (H - (a.y - b.y)) * (H - (a.y - b.y));
-                    float dist4 = (W - (a.x - b.x)) * (W - (a.x - b.x)) + (H - (a.y - b.y)) * (H - (a.y - b.y));
+                    float dist2 = (W - Math.abs(a.x - b.x)) * (W - Math.abs(a.x - b.x)) + (a.y - b.y) * (a.y - b.y);
+                    float dist3 = (a.x - b.x) * (a.x - b.x) + (H - Math.abs(a.y - b.y)) * (H - Math.abs(a.y - b.y));
+                    float dist4 = (W - Math.abs(a.x - b.x)) * (W - Math.abs(a.x - b.x)) + (H - Math.abs(a.y - b.y)) * (H - Math.abs(a.y - b.y));
                     float dist = Math.min(Math.min(dist1, dist2), Math.min(dist3, dist4));
                     if (dist < sightDistance * sightDistance) {
                         if (dist < minEnemyDist) {
@@ -146,6 +172,7 @@ public class Main {
                     }
                 }
                 if (minFoodDist > minEnemyDist & closestEnemy != null) {
+                    a.useStamina = true;
                     if (Math.abs(closestEnemy.x - a.x) > sightDistance)
                         a.tx = closestEnemy.x - a.x;
                     else
@@ -155,6 +182,7 @@ public class Main {
                     else
                         a.ty = -closestEnemy.y + a.y;
                 } else {
+                    a.useStamina = true;
                     if (closestFood != null) {
                         if (Math.abs(closestFood.x - a.x) > sightDistance)
                             a.tx = -closestFood.x + a.x;
@@ -165,8 +193,8 @@ public class Main {
                         else
                             a.ty = closestFood.y - a.y;
                         if (minFoodDist < radiusEntity * radiusEntity) {
-                            if (closestFood.intelligence + closestFood.force > a.intelligence + a.force) {
-                                closestFood.health *= 1 - ((a.intelligence + a.force) / (closestFood.intelligence + closestFood.force)) * ((a.intelligence + a.force) / (closestFood.intelligence + closestFood.force));
+                            if (closestFood.agility / 2 + closestFood.force > a.agility / 2 + a.force) {
+                                closestFood.health *= 1 - ((a.agility / 2 + a.force) / (closestFood.agility / 2 + closestFood.force)) * ((a.agility / 2 + a.force) / (closestFood.agility / 2 + closestFood.force));
                                 closestFood.health += a.health;
                                 entities.remove(i);
                                 i--;
@@ -179,6 +207,7 @@ public class Main {
                             }
                         }
                     } else {
+                        a.useStamina = false;
                         if (Math.random() < directionChangeRate) {
                             double randomAngle = Math.random() * Math.PI * 2;
                             a.tx = (float) Math.cos(randomAngle) * 2;
@@ -192,23 +221,39 @@ public class Main {
                     Entity b = new Entity(a.x + (float) Math.random() * 10 - 5, a.y + (float) Math.random() * 10 - 5);
                     b.speed = a.speed;
                     b.force = a.force;
-                    b.intelligence = a.intelligence;
+                    b.agility = a.agility;
+                    b.stamina = a.stamina;
+                    b.predator = a.predator;
                     entities.add(b);
                 }
                 if (Math.random() < chanceMutation) {
+                    a.health = 1f;
+                    a.accumulatedStamina = 0f;
                     a.speed = (float) (a.speed * (Math.random() / 5 + 0.9f));
                     if (a.speed >= 1)
                         a.speed = 0.999999f;
                     a.force = (float) (a.force * (Math.random() / 5 + 0.9f));
                     if (a.force >= 1)
                         a.force = 0.999999f;
-                    a.intelligence = (float) (a.intelligence * (Math.random() / 5 + 0.9f));
-                    if (a.intelligence >= 1)
-                        a.intelligence = 0.999999f;
+                    a.agility = (float) (a.agility * (Math.random() / 5 + 0.9f));
+                    if (a.agility >= 1)
+                        a.agility = 0.999999f;
+                    a.stamina = (float) (a.stamina * (Math.random() / 5 + 0.9f));
+                    if (a.stamina >= 1)
+                        a.stamina = 0.999999f;
+                    if ((Math.random() < 0.1f)) {
+                        if (a.predator == 0f)
+                            a.predator = 1f;
+                        else
+                            a.predator = 0f;
+                    }
+
                 }
-                a.health -= (1 / (1 - a.speed)) * coefHealthChange;
-                a.health -= (1 / (1 - a.intelligence)) * coefHealthChange;
-                a.health -= (1 / (1 - a.force)) * coefHealthChange;
+                a.health -= ((1 / (1 - a.speed)) - 1) * coefHealthChange;
+                a.health -= ((1 / (1 - a.agility)) - 1) * coefHealthChange;
+                a.health -= ((1 / (1 - a.force)) - 1) * coefHealthChange;
+                a.health -= ((1 / (1 - a.stamina)) - 1) * coefHealthChange;
+                a.health -= a.predator * coefHealthChange;
 
                 if (a.health <= 0) {
                     entities.remove(i);
@@ -216,7 +261,9 @@ public class Main {
                 }
                 sumForce += a.force;
                 sumSpeed += a.speed;
-                sumIntelligence += a.intelligence;
+                sumStamina += a.stamina;
+                sumAgility += a.agility;
+                sumPredator += a.predator;
             }
         }
     }
