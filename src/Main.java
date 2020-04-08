@@ -7,13 +7,22 @@ class Entity  {
     public float y;
     public float tx = 0;
     public float ty = 0;
-    public float health = 1f;
+    public float fullness = 1f;
     public float maxSpeed = 0.5f;
     public float currentSpeed = maxSpeed;
+    public float recoverySpeed = 0.5f;
+    public boolean useMaxSpeed = false;
+    public final float coefSpeedDecrease = 1f - recoverySpeed / 1000f;
+    public final float coefSpeedIncrease = maxSpeed - maxSpeed * (1f - recoverySpeed / 1000f);
+
+
+    public float maxHealth = 0.5f;
+    public float currentHealth = maxHealth;
+    public float recoveryHealth = 0.5f;
+    public final float coefHealthIncrease = maxHealth - maxHealth * (1f - recoveryHealth / 1000f);
     public float force = 0.5f;
-    public float agility = 0.5f;
-    public float stamina = 0.5f;
-    public boolean useStamina = false;
+    public float toxicity = 0.5f;
+
     public float predator = 0f;
 
 
@@ -28,16 +37,16 @@ public class Main {
     final int H = 800;
     float sumForce;
     float sumMaxSpeed;
-    float sumAgility;
+    float sumToxicity;
     float sumStamina;
     float sumPredator;
-    final float maxHealth = 3f;
+    final float maxFullness = 3f;
     final float sightDistance = 100f;
     final float directionChangeRate = 0.01f;
     final float radiusEntity = 10f;
     final float chanceMutation = 0.1f;
-    final float coefHealthChange = 0.00015f;
-    final float coefHealthIncrease = 0.001f;
+    final float coefFullnessChange = 0.00015f;
+    final float coefFullnessIncrease = 0.002f;
     final float coefMutation = 0.1f;
     ArrayList<Entity> entities = new ArrayList<>();
     int countCycles = 0;
@@ -96,15 +105,15 @@ public class Main {
             g2.setColor(new Color(0, 0, 255, 255));
             g2.drawString("Average stamina: " + Float.toString(sumStamina / entities.size()), 50, 250);
             g2.setColor(new Color(0, 0, 0, 255));
-            g2.drawString("Average agility: " + Float.toString(sumAgility / entities.size()), 50, 300);
+            g2.drawString("Average toxicity: " + Float.toString(sumToxicity / entities.size()), 50, 300);
             g2.drawString("Average predator: " + Float.toString(sumPredator / entities.size()), 50, 350);
             for (Entity a : entities) {
                 if (a.predator == 1f) {
                     g2.setColor(new Color(0, 0, 0, 255));
-                    g2.drawOval((int) (a.x - radiusEntity * Math.sqrt(a.health)), (int) (a.y - radiusEntity * Math.sqrt(a.health)), (int) (radiusEntity * Math.sqrt(a.health) * 2), (int) (radiusEntity * Math.sqrt(a.health)) * 2);
+                    g2.drawOval((int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)), (int) (radiusEntity * Math.sqrt(a.fullness) * 2), (int) (radiusEntity * Math.sqrt(a.fullness)) * 2);
                 }
-                g2.setColor(new Color(Math.round(a.force * 255), Math.round(a.maxSpeed * 255), Math.round(a.stamina * 255), 130));
-                g2.fillOval((int) (a.x - radiusEntity * Math.sqrt(a.health)), (int) (a.y - radiusEntity * Math.sqrt(a.health)), (int) (radiusEntity * Math.sqrt(a.health) * 2), (int) (radiusEntity * Math.sqrt(a.health)) * 2);
+                g2.setColor(new Color(Math.round(a.force * 255), Math.round(a.maxSpeed * 255), Math.round(a.recoverySpeed * 255), 130));
+                g2.fillOval((int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)), (int) (radiusEntity * Math.sqrt(a.fullness) * 2), (int) (radiusEntity * Math.sqrt(a.fullness)) * 2);
             }
         }
 
@@ -113,20 +122,25 @@ public class Main {
             sumForce = 0;
             sumMaxSpeed = 0;
             sumStamina = 0;
-            sumAgility = 0;
+            sumToxicity = 0;
             sumPredator = 0;
             for (int currentEntityIndex = 0; currentEntityIndex < entities.size(); currentEntityIndex++) {
                 Entity currentEntity = entities.get(currentEntityIndex);
+
+                currentEntity.currentHealth += currentEntity.coefHealthIncrease;
+                if (currentEntity.currentHealth > currentEntity.maxHealth)
+                    currentEntity.currentHealth = currentEntity.maxHealth;
+
                 double targetAngle = Math.atan2(currentEntity.ty, currentEntity.tx);
 
-                if (currentEntity.useStamina) {
+                if (currentEntity.useMaxSpeed) {
                     currentEntity.x += (float) Math.cos(targetAngle) * currentEntity.currentSpeed;
                     currentEntity.y += (float) Math.sin(targetAngle) * currentEntity.currentSpeed;
-                    currentEntity.currentSpeed *= 1 - currentEntity.stamina / 1000;
+                    currentEntity.currentSpeed *= currentEntity.coefSpeedDecrease;
                 } else {
-                    currentEntity.x += (float) Math.cos(targetAngle) * currentEntity.currentSpeed / 4;
-                    currentEntity.y += (float) Math.sin(targetAngle) * currentEntity.currentSpeed / 4;
-                    currentEntity.currentSpeed /= 1 - currentEntity.stamina / 1000;
+                    currentEntity.x += (float) Math.cos(targetAngle) * currentEntity.currentSpeed / 4f;
+                    currentEntity.y += (float) Math.sin(targetAngle) * currentEntity.currentSpeed / 4f;
+                    currentEntity.currentSpeed += currentEntity.coefSpeedIncrease;
                     if (currentEntity.currentSpeed > currentEntity.maxSpeed)
                         currentEntity.currentSpeed = currentEntity.maxSpeed;
                 }
@@ -141,6 +155,7 @@ public class Main {
                     Entity e = entities.get(i);
                     if (currentEntity.predator == 0f) continue;
                     if (e.force >= currentEntity.force) continue;
+                    if (currentEntity.currentHealth < currentEntity.maxHealth) continue;
                     float dist1 = (currentEntity.x - e.x) * (currentEntity.x - e.x) + (currentEntity.y - e.y) * (currentEntity.y - e.y);
                     float dist2 = (W - Math.abs(currentEntity.x - e.x)) * (W - Math.abs(currentEntity.x - e.x)) + (currentEntity.y - e.y) * (currentEntity.y - e.y);
                     float dist3 = (currentEntity.x - e.x) * (currentEntity.x - e.x) + (H - Math.abs(currentEntity.y - e.y)) * (H - Math.abs(currentEntity.y - e.y));
@@ -173,7 +188,7 @@ public class Main {
                     }
                 }
                 if (minFoodDist > minEnemyDist & closestEnemy != null) {
-                    currentEntity.useStamina = true;
+                    currentEntity.useMaxSpeed = true;
                     if (Math.abs(closestEnemy.x - currentEntity.x) > sightDistance)
                         currentEntity.tx = closestEnemy.x - currentEntity.x;
                     else
@@ -183,7 +198,7 @@ public class Main {
                     else
                         currentEntity.ty = -closestEnemy.y + currentEntity.y;
                 } else {
-                    currentEntity.useStamina = true;
+                    currentEntity.useMaxSpeed = true;
                     if (closestFood != null) {
                         if (Math.abs(closestFood.x - currentEntity.x) > sightDistance)
                             currentEntity.tx = -closestFood.x + currentEntity.x;
@@ -194,21 +209,14 @@ public class Main {
                         else
                             currentEntity.ty = closestFood.y - currentEntity.y;
                         if (minFoodDist < radiusEntity * radiusEntity) {
-                            if (closestFood.agility + closestFood.force > currentEntity.agility + currentEntity.force) {
-                                closestFood.health *= 1 - ((currentEntity.agility + currentEntity.force) / (closestFood.agility + closestFood.force)) * ((currentEntity.agility + currentEntity.force) / (closestFood.agility + closestFood.force));
-                                closestFood.health += currentEntity.health;
-                                entities.remove(currentEntityIndex);
+                            currentEntity.currentHealth *= 1 - (closestFood.force / currentEntity.force) * (closestFood.force / currentEntity.force);
+                            currentEntity.fullness += closestFood.fullness*(0.5f-closestFood.toxicity);
+                            entities.remove(indexClosestFood);
+                            if (indexClosestFood < currentEntityIndex)
                                 currentEntityIndex--;
-                            } else {
-                                currentEntity.health *= 1 - (closestFood.force / currentEntity.force) * (closestFood.force / currentEntity.force);
-                                currentEntity.health += closestFood.health;
-                                entities.remove(indexClosestFood);
-                                if (indexClosestFood < currentEntityIndex)
-                                    currentEntityIndex--;
-                            }
                         }
                     } else {
-                        currentEntity.useStamina = false;
+                        currentEntity.useMaxSpeed = false;
                         if (Math.random() < directionChangeRate) {
                             double randomAngle = Math.random() * Math.PI * 2;
                             currentEntity.tx = (float) Math.cos(randomAngle) * 2;
@@ -216,17 +224,17 @@ public class Main {
                         }
                     }
                 }
-                currentEntity.health += coefHealthIncrease;
-                if (currentEntity.health >= maxHealth) {
-                    currentEntity.health = 1f;
+                currentEntity.fullness += coefFullnessIncrease;
+                if (currentEntity.fullness >= maxFullness) {
+                    currentEntity.fullness = 1f;
                     Entity newEntity = new Entity(currentEntity.x + (float) Math.random() * 10 - 5, currentEntity.y + (float) Math.random() * 10 - 5);
                     newEntity.maxSpeed = currentEntity.maxSpeed;
                     newEntity.force = currentEntity.force;
-                    newEntity.agility = currentEntity.agility;
-                    newEntity.stamina = currentEntity.stamina;
+                    newEntity.toxicity = currentEntity.toxicity;
+                    newEntity.recoverySpeed = currentEntity.recoverySpeed;
                     newEntity.predator = currentEntity.predator;
                     if (Math.random() < chanceMutation) {
-                        newEntity.health = 1f;
+                        newEntity.fullness = 1f;
                         if (Math.random() < 0.5f)
                             newEntity.maxSpeed = newEntity.maxSpeed * (1 - coefMutation);
                         else
@@ -236,13 +244,13 @@ public class Main {
                         else
                             newEntity.force = newEntity.force + (1 - newEntity.force) * coefMutation;
                         if (Math.random() < 0.5f)
-                            newEntity.agility = newEntity.agility * (1 - coefMutation);
+                            newEntity.toxicity = newEntity.toxicity * (1 - coefMutation);
                         else
-                            newEntity.agility = newEntity.agility + (1 - newEntity.agility) * coefMutation;
+                            newEntity.toxicity = newEntity.toxicity + (1 - newEntity.toxicity) * coefMutation;
                         if (Math.random() < 0.5f)
-                            newEntity.stamina = newEntity.stamina * (1 - coefMutation);
+                            newEntity.recoverySpeed = newEntity.recoverySpeed * (1 - coefMutation);
                         else
-                            newEntity.stamina = newEntity.stamina + (1 - newEntity.stamina) * coefMutation;
+                            newEntity.recoverySpeed = newEntity.recoverySpeed + (1 - newEntity.recoverySpeed) * coefMutation;
                         if ((Math.random() < 0.5f)) {
                             if (newEntity.predator == 0f)
                                 newEntity.predator = 1f;
@@ -252,19 +260,19 @@ public class Main {
                     }
                     entities.add(newEntity);
                 }
-                currentEntity.health -= ((1 / (1 - currentEntity.maxSpeed)) - 1) * coefHealthChange;
-                currentEntity.health -= ((1 / (1 - currentEntity.agility)) - 1) * coefHealthChange;
-                currentEntity.health -= ((1 / (1 - currentEntity.force)) - 1) * coefHealthChange;
-                currentEntity.health -= ((1 / (1 - currentEntity.stamina)) - 1) * coefHealthChange;
+                currentEntity.fullness -= ((1 / (1 - currentEntity.maxSpeed)) - 1) * coefFullnessChange;
+                currentEntity.fullness -= ((1 / (1 - currentEntity.toxicity)) - 1) * coefFullnessChange;
+                currentEntity.fullness -= ((1 / (1 - currentEntity.force)) - 1) * coefFullnessChange;
+                currentEntity.fullness -= ((1 / (1 - currentEntity.recoverySpeed)) - 1) * coefFullnessChange;
                 //currentEntity.health -= currentEntity.predator * coefHealthChange;
-                if (currentEntity.health <= 0) {
+                if (currentEntity.fullness <= 0) {
                     entities.remove(currentEntityIndex);
                     currentEntityIndex--;
                 }
                 sumForce += currentEntity.force;
                 sumMaxSpeed += currentEntity.maxSpeed;
-                sumStamina += currentEntity.stamina;
-                sumAgility += currentEntity.agility;
+                sumStamina += currentEntity.recoverySpeed;
+                sumToxicity += currentEntity.toxicity;
                 sumPredator += currentEntity.predator;
             }
         }
