@@ -47,7 +47,7 @@ public class Main {
     final float directionChangeRate = 0.01f;
     final float radiusEntity = 10f;
     final float chanceMutation = 0.1f;
-    final float coefFullnessChange = 0.000015f;
+    final float coefFullnessChange = 0.00003f;
     final float coefFullnessIncrease = 0.001f;
     final float coefMutation = 0.2f;
     ArrayList<Entity> entities = new ArrayList<>();
