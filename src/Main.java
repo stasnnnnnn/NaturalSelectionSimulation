@@ -47,13 +47,13 @@ public class Main {
     final float directionChangeRate = 0.01f;
     final float radiusEntity = 10f;
     final float chanceMutation = 0.1f;
-    final float coefFullnessChange = 0.00001f;
+    final float coefFullnessChange = 0.000015f;
     final float coefFullnessIncrease = 0.001f;
     final float coefMutation = 0.2f;
     ArrayList<Entity> entities = new ArrayList<>();
     int countCycles = 0;
     public int refreshRate = 8;
-    public float smallValue = 0.000001f;
+    public float minExcess = 1f + 1 / 8f;
 
     public static void main(String[] args) {
         new Main();
@@ -145,9 +145,8 @@ public class Main {
             for (int currentEntityIndex = 0; currentEntityIndex < entities.size(); currentEntityIndex++) {
                 Entity currentEntity = entities.get(currentEntityIndex);
                 if (currentEntity.alive) {
-                    currentEntity.currentHealth += currentEntity.coefHealthIncrease;
-                    if (currentEntity.currentHealth > currentEntity.maxHealth)
-                        currentEntity.currentHealth = currentEntity.maxHealth;
+                    if (currentEntity.currentHealth < currentEntity.maxHealth)
+                        currentEntity.currentHealth += currentEntity.coefHealthIncrease;
                     double targetAngle = Math.atan2(currentEntity.ty, currentEntity.tx);
                     if (currentEntity.useMaxSpeed) {
                         currentEntity.x += (float) Math.cos(targetAngle) * currentEntity.currentSpeed * refreshRate;
@@ -172,7 +171,12 @@ public class Main {
                     for (Entity e : entities) {
                         if (currentEntity == e)
                             continue;
-                        if (currentEntity.force >= e.force - Math.abs(currentEntity.intelligence - e.intelligence) + smallValue)
+                        if (currentEntity.intelligence >= e.intelligence) {
+                            if (currentEntity.force >= e.force * (e.intelligence / currentEntity.intelligence))
+                                continue;
+                        } else if (currentEntity.force >= e.force * (currentEntity.intelligence / e.intelligence))
+                            continue;
+                        if (currentEntity.force >= e.force - Math.abs(currentEntity.intelligence - e.intelligence))
                             continue;
                         float dist = getDist(currentEntity, e);
                         if (dist < sightDistance * sightDistance) {
@@ -194,12 +198,12 @@ public class Main {
                             Entity e = entities.get(i);
                             if (currentEntity == e)
                                 continue;
-                            if (currentEntity.intelligence >= e.intelligence + smallValue) {
-                                if (currentEntity.force + smallValue <= e.force)
+                            if (currentEntity.intelligence >= e.intelligence) {
+                                if (currentEntity.force <= e.force * minExcess)
                                     continue;
-                            } else if (currentEntity.force + smallValue <= e.force + Math.abs(currentEntity.intelligence - e.intelligence))
+                            } else if (currentEntity.force <= e.force * (e.intelligence / currentEntity.intelligence) * minExcess)
                                 continue;
-                            if (currentEntity.currentHealth + smallValue < currentEntity.maxHealth)
+                            if (currentEntity.currentHealth < currentEntity.maxHealth)
                                 continue;
                             float dist = getDist(currentEntity, e);
                             if (dist < sightDistance * sightDistance) {
@@ -275,42 +279,42 @@ public class Main {
                                 newEntity.maxSpeed = (float) (newEntity.maxSpeed * (1 - Math.random() * coefMutation));
                             else
                                 newEntity.maxSpeed = (float) (newEntity.maxSpeed + (1 - newEntity.maxSpeed) * Math.random() * coefMutation);
-                            newEntity.maxSpeed = Math.round(newEntity.maxSpeed * 100f) / 100f;
+                            newEntity.maxSpeed = Math.round(newEntity.maxSpeed * 1000f) / 1000f;
                             if (Math.random() < 0.5f)
                                 newEntity.force = (float) (newEntity.force * (1 - Math.random() * coefMutation));
                             else
                                 newEntity.force = (float) (newEntity.force + (1 - newEntity.force) * Math.random() * coefMutation);
-                            newEntity.force = Math.round(newEntity.force * 100f) / 100f;
+                            newEntity.force = Math.round(newEntity.force * 1000f) / 1000f;
                             if (Math.random() < 0.5f)
                                 newEntity.toxicity = (float) (newEntity.toxicity * (1 - Math.random() * coefMutation));
                             else
                                 newEntity.toxicity = (float) (newEntity.toxicity + (1 - newEntity.toxicity) * Math.random() * coefMutation);
-                            newEntity.toxicity = Math.round(newEntity.toxicity * 100f) / 100f;
+                            newEntity.toxicity = Math.round(newEntity.toxicity * 1000f) / 1000f;
                             if (Math.random() < 0.5f)
                                 newEntity.recoverySpeed = (float) (newEntity.recoverySpeed * (1 - Math.random() * coefMutation));
                             else
                                 newEntity.recoverySpeed = (float) (newEntity.recoverySpeed + (1 - newEntity.recoverySpeed) * Math.random() * coefMutation);
-                            newEntity.recoverySpeed = Math.round(newEntity.recoverySpeed * 100f) / 100f;
+                            newEntity.recoverySpeed = Math.round(newEntity.recoverySpeed * 1000f) / 1000f;
                             if (Math.random() < 0.5f)
                                 newEntity.maxHealth = (float) (newEntity.maxHealth * (1 - Math.random() * coefMutation));
                             else
                                 newEntity.maxHealth = (float) (newEntity.maxHealth + (1 - newEntity.maxHealth) * Math.random() * coefMutation);
-                            newEntity.maxHealth = Math.round(newEntity.maxHealth * 100f) / 100f;
+                            newEntity.maxHealth = Math.round(newEntity.maxHealth * 1000f) / 1000f;
                             if (Math.random() < 0.5f)
                                 newEntity.recoveryHealth = (float) (newEntity.recoveryHealth * (1 - Math.random() * coefMutation));
                             else
                                 newEntity.recoveryHealth = (float) (newEntity.recoveryHealth + (1 - newEntity.recoveryHealth) * Math.random() * coefMutation);
-                            newEntity.recoveryHealth = Math.round(newEntity.recoveryHealth * 100f) / 100f;
+                            newEntity.recoveryHealth = Math.round(newEntity.recoveryHealth * 1000f) / 1000f;
                             if (Math.random() < 0.5f)
                                 newEntity.maxAge = (float) (newEntity.maxAge * (1 - Math.random() * coefMutation));
                             else
                                 newEntity.maxAge = (float) (newEntity.maxAge + (1 - newEntity.maxAge) * Math.random() * coefMutation);
-                            newEntity.maxAge = Math.round(newEntity.maxAge * 100f) / 100f;
+                            newEntity.maxAge = Math.round(newEntity.maxAge * 1000f) / 1000f;
                             if (Math.random() < 0.5f)
                                 newEntity.intelligence = (float) (newEntity.intelligence * (1 - Math.random() * coefMutation));
                             else
                                 newEntity.intelligence = (float) (newEntity.intelligence + (1 - newEntity.intelligence) * Math.random() * coefMutation);
-                            newEntity.intelligence = Math.round(newEntity.intelligence * 100f) / 100f;
+                            newEntity.intelligence = Math.round(newEntity.intelligence * 1000f) / 1000f;
                         }
                         entities.add(newEntity);
                     }
@@ -328,8 +332,8 @@ public class Main {
                     if (currentEntity.currentAge >= 2500 / (1f - currentEntity.maxAge)) {
                         dead(currentEntity);
                     }
-                    currentEntity.currentSpeed = Math.round(currentEntity.currentSpeed * 100f) / 100f;
-                    currentEntity.currentHealth = Math.round(currentEntity.currentHealth * 100f) / 100f;
+                    currentEntity.currentSpeed = Math.round(currentEntity.currentSpeed * 1000f) / 1000f;
+                    currentEntity.currentHealth = Math.round(currentEntity.currentHealth * 1000f) / 1000f;
                     sumForce += currentEntity.force;
                     sumMaxSpeed += currentEntity.maxSpeed;
                     sumRecoverySpeed += currentEntity.recoverySpeed;

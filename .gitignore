@@ -4,7 +4,6 @@
 # IntellijIdea files
 *.iml
 .idea
-out
 
 # Log file
 *.log
@@ -16,7 +15,6 @@ out
 .mtj.tmp/
 
 # Package Files #
-*.jar
 *.war
 *.nar
 *.ear
@@ -31,3 +29,4 @@ NaturalSelectionSimulation.iml
 .idea/modules.xml
 .idea/misc.xml
 .idea/.name
+*.MF
