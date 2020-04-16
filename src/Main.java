@@ -24,6 +24,9 @@ class Entity  {
     public int currentAge;
     public float maxAge = 0.5f;
     public boolean alive = true;
+    public boolean estrus = false;
+    public int currentEstrusDuration;
+
 
     public Entity (float x, float y) {
         this.x = x;
@@ -52,8 +55,10 @@ public class Main {
     final float coefMutation = 0.2f;
     ArrayList<Entity> entities = new ArrayList<>();
     int countCycles = 0;
+    int countDead = 0;
     public int refreshRate = 8;
     public float minExcess = 1f + 1 / 8f;
+    public int EstrusDuration = 256;
 
     public static void main(String[] args) {
         new Main();
@@ -103,17 +108,18 @@ public class Main {
             g2.drawString("Count cycles: " + Float.toString(countCycles), 50, 50);
             g2.drawString("Count entities: " + Float.toString(entities.size()), 50, 100);
             g2.setColor(new Color(255, 0, 0, 255));
-            g2.drawString("Average force: " + sumForce / entities.size(), 50, 150);
+            int countAlive = entities.size() - countDead;
+            g2.drawString("Average force: " + sumForce / countAlive, 50, 150);
             g2.setColor(new Color(0, 255, 0, 255));
-            g2.drawString("Average toxicity: " + sumToxicity / entities.size(), 50, 200);
+            g2.drawString("Average toxicity: " + sumToxicity / countAlive, 50, 200);
             g2.setColor(new Color(0, 0, 255, 255));
-            g2.drawString("Average intelligence: " + sumIntelligence / entities.size(), 50, 250);
+            g2.drawString("Average intelligence: " + sumIntelligence / countAlive, 50, 250);
             g2.setColor(new Color(0, 0, 0, 255));
-            g2.drawString("Average max speed: " + sumMaxSpeed / entities.size(), 50, 300);
-            g2.drawString("Average recovery speed: " + sumRecoverySpeed / entities.size(), 50, 350);
-            g2.drawString("Average max health: " + sumMaxHealth / entities.size(), 50, 400);
-            g2.drawString("Average recovery health: " + sumRecoveryHealth / entities.size(), 50, 450);
-            g2.drawString("Average max age: " + sumMaxAge / entities.size(), 50, 500);
+            g2.drawString("Average max speed: " + sumMaxSpeed / countAlive, 50, 300);
+            g2.drawString("Average recovery speed: " + sumRecoverySpeed / countAlive, 50, 350);
+            g2.drawString("Average max health: " + sumMaxHealth / countAlive, 50, 400);
+            g2.drawString("Average recovery health: " + sumRecoveryHealth / countAlive, 50, 450);
+            g2.drawString("Average max age: " + sumMaxAge / countAlive, 50, 500);
             for (Entity a : entities) {
                 g2.setColor(new Color(Math.round(a.force * 255), Math.round(a.toxicity * 255), Math.round(a.intelligence * 255), Math.round(a.currentHealth * 255)));
                 g2.fillOval((int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)), (int) (radiusEntity * Math.sqrt(a.fullness) * 2), (int) (radiusEntity * Math.sqrt(a.fullness)) * 2);
@@ -128,7 +134,8 @@ public class Main {
                 g2.drawString("MS " + a.maxSpeed, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 20);
                 g2.drawString("RS " + a.recoverySpeed, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 30);
                 g2.drawString("MA " + a.maxAge, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 40);
-                g2.drawString("LL " + (100f - Math.round(a.currentAge / (2500 / (1f - a.maxAge)) * 100f)), (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 50);
+                g2.drawString("ED " + a.currentEstrusDuration, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 50);
+                g2.drawString("LL " + (100f - Math.round(a.currentAge / (2500 / (1f - a.maxAge)) * 100f)), (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 60);
             }
         }
 
@@ -142,11 +149,16 @@ public class Main {
             sumRecoveryHealth = 0;
             sumIntelligence = 0;
             sumMaxAge = 0;
+            countDead = 0;
             for (int currentEntityIndex = 0; currentEntityIndex < entities.size(); currentEntityIndex++) {
                 Entity currentEntity = entities.get(currentEntityIndex);
                 if (currentEntity.alive) {
+                    currentEntity.currentAge++;
+                    currentEntity.fullness += coefFullnessIncrease;
                     if (currentEntity.currentHealth < currentEntity.maxHealth)
                         currentEntity.currentHealth += currentEntity.coefHealthIncrease;
+                    else if (currentEntity.currentHealth > currentEntity.maxHealth)
+                        currentEntity.currentHealth = currentEntity.maxHealth;
                     double targetAngle = Math.atan2(currentEntity.ty, currentEntity.tx);
                     if (currentEntity.useMaxSpeed) {
                         currentEntity.x += (float) Math.cos(targetAngle) * currentEntity.currentSpeed * refreshRate;
@@ -172,9 +184,9 @@ public class Main {
                         if (currentEntity == e)
                             continue;
                         if (currentEntity.intelligence >= e.intelligence) {
-                            if (currentEntity.force >= e.force * (e.intelligence / currentEntity.intelligence))
+                            if (currentEntity.force * minExcess >= e.force * (e.intelligence / currentEntity.intelligence))
                                 continue;
-                        } else if (currentEntity.force >= e.force * (currentEntity.intelligence / e.intelligence))
+                        } else if (currentEntity.force * minExcess >= e.force * (currentEntity.intelligence / e.intelligence))
                             continue;
                         if (currentEntity.force >= e.force - Math.abs(currentEntity.intelligence - e.intelligence))
                             continue;
@@ -190,12 +202,38 @@ public class Main {
                     }
                     minEnemyDist2 = (float) Math.sqrt(minEnemyDist2);
                     minEnemyDist1 = (float) Math.sqrt(minEnemyDist1);
+                    Entity closestFemalePartner = null;
+                    float minFemalePartnerDist = (W * W) + (H * H);
+                    if (closestEnemy1 == null
+                            & currentEntity.fullness >= 1f
+                            & !currentEntity.estrus
+                            & currentEntity.currentHealth == currentEntity.maxHealth)
+                        for (Entity e : entities) {
+                            if (currentEntity == e)
+                                continue;
+                            if (currentEntity.intelligence >= e.intelligence) {
+                                if (currentEntity.force >= e.force * minExcess)
+                                    continue;
+                            } else if (currentEntity.force >= e.force * (e.intelligence / currentEntity.intelligence) * minExcess)
+                                continue;
+                            if (!e.estrus)
+                                continue;
+                            if (twin(currentEntity, e)) continue;
+                            float dist = getDist(currentEntity, e);
+                            if (dist < sightDistance * sightDistance) {
+                                if (dist < minFemalePartnerDist) {
+                                    minFemalePartnerDist = dist;
+                                    closestFemalePartner = e;
+                                }
+                            }
+                        }
                     Entity closestFood = null;
                     int indexClosestFood = 0;
                     float minFoodDist = (W * W) + (H * H);
-                    if (closestEnemy1 == null) {
-                        for (int i = 0; i < entities.size(); i++) {
-                            Entity e = entities.get(i);
+                    if (closestEnemy1 == null
+                            & closestFemalePartner == null
+                            & currentEntity.currentHealth == currentEntity.maxHealth)
+                        for (Entity e : entities) {
                             if (currentEntity == e)
                                 continue;
                             if (currentEntity.intelligence >= e.intelligence) {
@@ -203,18 +241,33 @@ public class Main {
                                     continue;
                             } else if (currentEntity.force <= e.force * (e.intelligence / currentEntity.intelligence) * minExcess)
                                 continue;
-                            if (currentEntity.currentHealth < currentEntity.maxHealth)
-                                continue;
                             float dist = getDist(currentEntity, e);
                             if (dist < sightDistance * sightDistance) {
                                 if (dist < minFoodDist) {
                                     minFoodDist = dist;
                                     closestFood = e;
-                                    indexClosestFood = i;
+                                    indexClosestFood = entities.indexOf(e);
                                 }
                             }
                         }
-                    }
+                    Entity closestMalePartner = null;
+                    float minMalePartnerDist = (W * W) + (H * H);
+                    if (closestEnemy1 == null
+                            & currentEntity.currentEstrusDuration == EstrusDuration)
+                        for (Entity e : entities) {
+                            if (currentEntity == e
+                                    | !e.alive
+                                    | e == closestFood
+                                    | twin(currentEntity, e))
+                                continue;
+                            float dist = getDist(currentEntity, e);
+                            if (dist < radiusEntity * radiusEntity) {
+                                if (dist < minMalePartnerDist) {
+                                    minMalePartnerDist = dist;
+                                    closestMalePartner = e;
+                                }
+                            }
+                        }
                     currentEntity.useMaxSpeed = true;
                     if (closestEnemy1 != null) {
                         if (Math.abs(closestEnemy1.x - currentEntity.x) > sightDistance)
@@ -236,87 +289,114 @@ public class Main {
                                 currentEntity.ty += -closestEnemy2.y + currentEntity.y;
                         }
                     } else {
-                        if (closestFood != null) {
-                            if (Math.abs(closestFood.x - currentEntity.x) > sightDistance)
-                                currentEntity.tx = -closestFood.x + currentEntity.x;
+                        if (closestFemalePartner != null) {
+                            if (Math.abs(closestFemalePartner.x - currentEntity.x) > sightDistance)
+                                currentEntity.tx = -closestFemalePartner.x + currentEntity.x;
                             else
-                                currentEntity.tx = closestFood.x - currentEntity.x;
-                            if (Math.abs(closestFood.y - currentEntity.y) > sightDistance)
-                                currentEntity.ty = -closestFood.y + currentEntity.y;
+                                currentEntity.tx = closestFemalePartner.x - currentEntity.x;
+                            if (Math.abs(closestFemalePartner.y - currentEntity.y) > sightDistance)
+                                currentEntity.ty = -closestFemalePartner.y + currentEntity.y;
                             else
-                                currentEntity.ty = closestFood.y - currentEntity.y;
-                            if (minFoodDist < radiusEntity * radiusEntity) {
-                                currentEntity.currentHealth *= 1 - (closestFood.force / currentEntity.force) * (closestFood.force / currentEntity.force);
-                                currentEntity.fullness += closestFood.fullness * (0.75f - closestFood.toxicity);
-                                entities.remove(indexClosestFood);
-                                if (indexClosestFood < currentEntityIndex)
-                                    currentEntityIndex--;
-                            }
+                                currentEntity.ty = closestFemalePartner.y - currentEntity.y;
                         } else {
-                            currentEntity.useMaxSpeed = false;
-                            if (Math.random() < directionChangeRate) {
-                                double randomAngle = Math.random() * Math.PI * 2;
-                                currentEntity.tx = (float) Math.cos(randomAngle);
-                                currentEntity.ty = (float) Math.sin(randomAngle);
+                            if (closestFood != null) {
+                                if (Math.abs(closestFood.x - currentEntity.x) > sightDistance)
+                                    currentEntity.tx = -closestFood.x + currentEntity.x;
+                                else
+                                    currentEntity.tx = closestFood.x - currentEntity.x;
+                                if (Math.abs(closestFood.y - currentEntity.y) > sightDistance)
+                                    currentEntity.ty = -closestFood.y + currentEntity.y;
+                                else
+                                    currentEntity.ty = closestFood.y - currentEntity.y;
+                                if (minFoodDist < radiusEntity * radiusEntity) {
+                                    currentEntity.currentHealth *= 1 - (closestFood.force / currentEntity.force) * (closestFood.force / currentEntity.force);
+                                    currentEntity.fullness += closestFood.fullness * (0.75f - closestFood.toxicity);
+                                    entities.remove(indexClosestFood);
+                                    if (indexClosestFood < currentEntityIndex)
+                                        currentEntityIndex--;
+                                }
+                            } else {
+                                currentEntity.useMaxSpeed = false;
+                                if (Math.random() < directionChangeRate) {
+                                    double randomAngle = Math.random() * Math.PI * 2;
+                                    currentEntity.tx = (float) Math.cos(randomAngle);
+                                    currentEntity.ty = (float) Math.sin(randomAngle);
+                                }
                             }
                         }
                     }
-                    currentEntity.fullness += coefFullnessIncrease;
-                    currentEntity.currentAge++;
-                    if (currentEntity.fullness >= maxFullness) {
-                        currentEntity.fullness = 1f;
-                        Entity newEntity = new Entity(currentEntity.x + (float) Math.random() * 10 - 5, currentEntity.y + (float) Math.random() * 10 - 5);
-                        newEntity.maxSpeed = currentEntity.maxSpeed;
-                        newEntity.force = currentEntity.force;
-                        newEntity.toxicity = currentEntity.toxicity;
-                        newEntity.recoverySpeed = currentEntity.recoverySpeed;
-                        newEntity.maxHealth = currentEntity.maxHealth;
-                        newEntity.recoveryHealth = currentEntity.recoveryHealth;
-                        newEntity.intelligence = currentEntity.intelligence;
-                        newEntity.maxAge = currentEntity.maxAge;
-                        if (Math.random() < chanceMutation) {
-                            if (Math.random() < 0.5f)
-                                newEntity.maxSpeed = (float) (newEntity.maxSpeed * (1 - Math.random() * coefMutation));
-                            else
-                                newEntity.maxSpeed = (float) (newEntity.maxSpeed + (1 - newEntity.maxSpeed) * Math.random() * coefMutation);
+                    if (currentEntity.fullness >= maxFullness & currentEntity.currentHealth == currentEntity.maxHealth)
+                        currentEntity.estrus = true;
+                    if (currentEntity.estrus) {
+                        currentEntity.currentEstrusDuration++;
+                        if (currentEntity.currentEstrusDuration > EstrusDuration) {
+                            currentEntity.fullness = currentEntity.fullness - 2f;
+                            Entity newEntity = new Entity(currentEntity.x + (float) Math.random() * 10 - 5, currentEntity.y + (float) Math.random() * 10 - 5);
+                            if (closestMalePartner == null) {
+                                newEntity.maxSpeed = currentEntity.maxSpeed;
+                                newEntity.force = currentEntity.force;
+                                newEntity.toxicity = currentEntity.toxicity;
+                                newEntity.recoverySpeed = currentEntity.recoverySpeed;
+                                newEntity.maxHealth = currentEntity.maxHealth;
+                                newEntity.recoveryHealth = currentEntity.recoveryHealth;
+                                newEntity.intelligence = currentEntity.intelligence;
+                                newEntity.maxAge = currentEntity.maxAge;
+                            } else {
+                                newEntity.maxSpeed = 1 - 1 / ((((1 / (1 - currentEntity.maxSpeed)) - 1) + ((1 / (1 - closestMalePartner.maxSpeed)) - 1)) / 2 + 1);
+                                newEntity.force = 1 - 1 / ((((1 / (1 - currentEntity.force)) - 1) + ((1 / (1 - closestMalePartner.force)) - 1)) / 2 + 1);
+                                newEntity.toxicity = 1 - 1 / ((((1 / (1 - currentEntity.toxicity)) - 1) + ((1 / (1 - closestMalePartner.toxicity)) - 1)) / 2 + 1);
+                                newEntity.recoverySpeed = 1 - 1 / ((((1 / (1 - currentEntity.recoverySpeed)) - 1) + ((1 / (1 - closestMalePartner.recoverySpeed)) - 1)) / 2 + 1);
+                                newEntity.maxHealth = 1 - 1 / ((((1 / (1 - currentEntity.maxHealth)) - 1) + ((1 / (1 - closestMalePartner.maxHealth)) - 1)) / 2 + 1);
+                                newEntity.recoveryHealth = 1 - 1 / ((((1 / (1 - currentEntity.recoveryHealth)) - 1) + ((1 / (1 - closestMalePartner.recoveryHealth)) - 1)) / 2 + 1);
+                                newEntity.intelligence = 1 - 1 / ((((1 / (1 - currentEntity.intelligence)) - 1) + ((1 / (1 - closestMalePartner.intelligence)) - 1)) / 2 + 1);
+                                newEntity.maxAge = 1 - 1 / ((((1 / (1 - currentEntity.maxAge)) - 1) + ((1 / (1 - closestMalePartner.maxAge)) - 1)) / 2 + 1);
+                            }
+                            if (Math.random() < chanceMutation) {
+                                if (Math.random() < 0.5f)
+                                    newEntity.maxSpeed = (float) (newEntity.maxSpeed * (1 - Math.random() * coefMutation));
+                                else
+                                    newEntity.maxSpeed = (float) (newEntity.maxSpeed + (1 - newEntity.maxSpeed) * Math.random() * coefMutation);
+                                if (Math.random() < 0.5f)
+                                    newEntity.force = (float) (newEntity.force * (1 - Math.random() * coefMutation));
+                                else
+                                    newEntity.force = (float) (newEntity.force + (1 - newEntity.force) * Math.random() * coefMutation);
+                                if (Math.random() < 0.5f)
+                                    newEntity.toxicity = (float) (newEntity.toxicity * (1 - Math.random() * coefMutation));
+                                else
+                                    newEntity.toxicity = (float) (newEntity.toxicity + (1 - newEntity.toxicity) * Math.random() * coefMutation);
+                                if (Math.random() < 0.5f)
+                                    newEntity.recoverySpeed = (float) (newEntity.recoverySpeed * (1 - Math.random() * coefMutation));
+                                else
+                                    newEntity.recoverySpeed = (float) (newEntity.recoverySpeed + (1 - newEntity.recoverySpeed) * Math.random() * coefMutation);
+                                if (Math.random() < 0.5f)
+                                    newEntity.maxHealth = (float) (newEntity.maxHealth * (1 - Math.random() * coefMutation));
+                                else
+                                    newEntity.maxHealth = (float) (newEntity.maxHealth + (1 - newEntity.maxHealth) * Math.random() * coefMutation);
+                                if (Math.random() < 0.5f)
+                                    newEntity.recoveryHealth = (float) (newEntity.recoveryHealth * (1 - Math.random() * coefMutation));
+                                else
+                                    newEntity.recoveryHealth = (float) (newEntity.recoveryHealth + (1 - newEntity.recoveryHealth) * Math.random() * coefMutation);
+                                if (Math.random() < 0.5f)
+                                    newEntity.maxAge = (float) (newEntity.maxAge * (1 - Math.random() * coefMutation));
+                                else
+                                    newEntity.maxAge = (float) (newEntity.maxAge + (1 - newEntity.maxAge) * Math.random() * coefMutation);
+                                if (Math.random() < 0.5f)
+                                    newEntity.intelligence = (float) (newEntity.intelligence * (1 - Math.random() * coefMutation));
+                                else
+                                    newEntity.intelligence = (float) (newEntity.intelligence + (1 - newEntity.intelligence) * Math.random() * coefMutation);
+                            }
                             newEntity.maxSpeed = Math.round(newEntity.maxSpeed * 1000f) / 1000f;
-                            if (Math.random() < 0.5f)
-                                newEntity.force = (float) (newEntity.force * (1 - Math.random() * coefMutation));
-                            else
-                                newEntity.force = (float) (newEntity.force + (1 - newEntity.force) * Math.random() * coefMutation);
                             newEntity.force = Math.round(newEntity.force * 1000f) / 1000f;
-                            if (Math.random() < 0.5f)
-                                newEntity.toxicity = (float) (newEntity.toxicity * (1 - Math.random() * coefMutation));
-                            else
-                                newEntity.toxicity = (float) (newEntity.toxicity + (1 - newEntity.toxicity) * Math.random() * coefMutation);
                             newEntity.toxicity = Math.round(newEntity.toxicity * 1000f) / 1000f;
-                            if (Math.random() < 0.5f)
-                                newEntity.recoverySpeed = (float) (newEntity.recoverySpeed * (1 - Math.random() * coefMutation));
-                            else
-                                newEntity.recoverySpeed = (float) (newEntity.recoverySpeed + (1 - newEntity.recoverySpeed) * Math.random() * coefMutation);
                             newEntity.recoverySpeed = Math.round(newEntity.recoverySpeed * 1000f) / 1000f;
-                            if (Math.random() < 0.5f)
-                                newEntity.maxHealth = (float) (newEntity.maxHealth * (1 - Math.random() * coefMutation));
-                            else
-                                newEntity.maxHealth = (float) (newEntity.maxHealth + (1 - newEntity.maxHealth) * Math.random() * coefMutation);
                             newEntity.maxHealth = Math.round(newEntity.maxHealth * 1000f) / 1000f;
-                            if (Math.random() < 0.5f)
-                                newEntity.recoveryHealth = (float) (newEntity.recoveryHealth * (1 - Math.random() * coefMutation));
-                            else
-                                newEntity.recoveryHealth = (float) (newEntity.recoveryHealth + (1 - newEntity.recoveryHealth) * Math.random() * coefMutation);
                             newEntity.recoveryHealth = Math.round(newEntity.recoveryHealth * 1000f) / 1000f;
-                            if (Math.random() < 0.5f)
-                                newEntity.maxAge = (float) (newEntity.maxAge * (1 - Math.random() * coefMutation));
-                            else
-                                newEntity.maxAge = (float) (newEntity.maxAge + (1 - newEntity.maxAge) * Math.random() * coefMutation);
                             newEntity.maxAge = Math.round(newEntity.maxAge * 1000f) / 1000f;
-                            if (Math.random() < 0.5f)
-                                newEntity.intelligence = (float) (newEntity.intelligence * (1 - Math.random() * coefMutation));
-                            else
-                                newEntity.intelligence = (float) (newEntity.intelligence + (1 - newEntity.intelligence) * Math.random() * coefMutation);
                             newEntity.intelligence = Math.round(newEntity.intelligence * 1000f) / 1000f;
+                            entities.add(newEntity);
+                            currentEntity.estrus = false;
+                            currentEntity.currentEstrusDuration = 0;
                         }
-                        entities.add(newEntity);
                     }
                     currentEntity.fullness -= ((1 / (1 - currentEntity.maxSpeed)) - 1) * coefFullnessChange;
                     currentEntity.fullness -= ((1 / (1 - currentEntity.toxicity)) - 1) * coefFullnessChange;
@@ -342,14 +422,27 @@ public class Main {
                     sumRecoveryHealth += currentEntity.recoveryHealth;
                     sumIntelligence += currentEntity.intelligence;
                     sumMaxAge += currentEntity.maxAge;
-                }
+                } else
+                    countDead++;
             }
+        }
+
+        private boolean twin(Entity currentEntity, Entity e) {
+            return currentEntity.maxHealth == e.maxHealth
+                    & currentEntity.recoveryHealth == e.recoveryHealth
+                    & currentEntity.force == e.force
+                    & currentEntity.intelligence == e.intelligence
+                    & currentEntity.maxSpeed == e.maxSpeed
+                    & currentEntity.maxAge == e.maxAge
+                    & currentEntity.recoverySpeed == e.recoverySpeed
+                    & currentEntity.toxicity == e.toxicity;
         }
 
         private void dead(Entity currentEntity) {
             currentEntity.force = 0;
             currentEntity.maxSpeed = 0;
             currentEntity.intelligence = 0;
+            currentEntity.estrus = false;
             currentEntity.alive = false;
         }
 
