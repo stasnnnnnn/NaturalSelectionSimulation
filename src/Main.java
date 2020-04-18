@@ -27,7 +27,6 @@ class Entity  {
     public boolean estrus = false;
     public int currentEstrusDuration;
 
-
     public Entity (float x, float y) {
         this.x = x;
         this.y = y;
@@ -41,15 +40,14 @@ public class Main {
     final float sightDistance = 128f;
     final float directionChangeRate = 0.001f;
     final float radiusEntity = 8f;
-    final float chanceMutation = 0.1f;
-    final float coefFullnessChange = 0.000003f;
+    final float chanceMutation = 1 / 32f;
+    final float coefFullnessChange = 0.000006f;
     final float coefFullnessIncrease = 0.0001f;
-    final float coefMutation = 0.2f;
-    final int renderingRate = 1;
-    final int logicOnRenderingRate = 1000;
+    final float coefMutation = 1 / 8f;
+    int logicOnRenderingRate = 1000;
     final float minExcess = 1f + 1 / 8f;
     final int estrusDuration = 1024;
-    final int normalLifeSpan = 16384;
+    final int normalLifeSpan = 32768;
     float sumForce;
     float sumMaxSpeed;
     float sumToxicity;
@@ -61,6 +59,8 @@ public class Main {
     ArrayList<Entity> entities = new ArrayList<>();
     int countCycles = 0;
     int countDead = 0;
+    float maxDist = sightDistance * sightDistance;
+    float maxDistPartner = radiusEntity * radiusEntity;
 
     public static void main(String[] args) {
         new Main();
@@ -73,19 +73,30 @@ public class Main {
             } catch (ClassNotFoundException | InstantiationException | IllegalAccessException | UnsupportedLookAndFeelException ignored) {
             }
             JFrame frame = new JFrame();
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setLayout(new BorderLayout());
-            frame.add(new FormPane());
+            JPanel topPanel = new JPanel();
+            JButton slow = new JButton("Slow");
+            slow.addActionListener(e -> logicOnRenderingRate(1));
+            JButton fast = new JButton("Fast");
+            fast.addActionListener(e -> logicOnRenderingRate(1000));
+            topPanel.add(slow);
+            topPanel.add(fast);
+            Container contentPane = frame.getContentPane();
+            contentPane.add("North", topPanel);
+            frame.add(new FormPane(), BorderLayout.CENTER);
             frame.pack();
             frame.setLocationRelativeTo(null);
             frame.setVisible(true);
         });
     }
 
+    public void logicOnRenderingRate(int r) {
+        logicOnRenderingRate = r;
+    }
+
     public class FormPane extends JPanel {
         public FormPane() {
             entities.add(new Entity((float) (Math.random() * (W)), (float) (Math.random() * (H))));
-            Timer timer = new Timer(renderingRate, e -> repaint());
+            Timer timer = new Timer(0, e -> repaint());
             timer.start();
         }
 
@@ -104,6 +115,7 @@ public class Main {
 
         private void draw(Graphics g) {
             Graphics2D g2 = (Graphics2D) g;
+            g2.setFont(new Font("default", Font.BOLD, 16));
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2.setColor(new Color(255, 255, 255, 255));
             g2.fillRect(0, 0, W, H);
@@ -123,6 +135,7 @@ public class Main {
             g2.drawString("Average max health: " + sumMaxHealth / countAlive, 50, 400);
             g2.drawString("Average recovery health: " + sumRecoveryHealth / countAlive, 50, 450);
             g2.drawString("Average max age: " + sumMaxAge / countAlive, 50, 500);
+            g2.setFont(new Font("default", Font.PLAIN, 10));
             for (Entity a : entities) {
                 g2.setColor(new Color(Math.round(a.force * 255), Math.round(a.toxicity * 255), Math.round(a.intelligence * 255), Math.round(a.currentHealth * 255)));
                 g2.fillOval((int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)), (int) (radiusEntity * Math.sqrt(a.fullness) * 2), (int) (radiusEntity * Math.sqrt(a.fullness)) * 2);
@@ -159,10 +172,13 @@ public class Main {
                     startChanges(currentEntity);
                     Entity closestEnemy1 = null;
                     Entity closestEnemy2 = null;
-                    float minEnemyDist1 = (W * W) + (H * H);
-                    float minEnemyDist2 = (W * W) + (H * H);
+                    float minEnemyDist1 = maxDist;
+                    float minEnemyDist2 = maxDist;
                     for (Entity e : entities) {
                         if (currentEntity == e)
+                            continue;
+                        if ((Math.abs(currentEntity.x - e.x) > sightDistance) & (W - Math.abs(currentEntity.x - e.x) > sightDistance)
+                                | (Math.abs(currentEntity.y - e.y) > sightDistance) & (H - Math.abs(currentEntity.y - e.y) > sightDistance))
                             continue;
                         if (currentEntity.intelligence >= e.intelligence) {
                             if (currentEntity.force * minExcess >= e.force * (e.intelligence / currentEntity.intelligence))
@@ -172,25 +188,26 @@ public class Main {
                         if (currentEntity.force >= e.force - Math.abs(currentEntity.intelligence - e.intelligence))
                             continue;
                         float dist = getDist(currentEntity, e);
-                        if (dist < sightDistance * sightDistance) {
-                            if (dist < minEnemyDist1) {
-                                minEnemyDist2 = minEnemyDist1;
-                                minEnemyDist1 = dist;
-                                closestEnemy2 = closestEnemy1;
-                                closestEnemy1 = e;
-                            }
+                        if (dist < minEnemyDist1) {
+                            minEnemyDist2 = minEnemyDist1;
+                            minEnemyDist1 = dist;
+                            closestEnemy2 = closestEnemy1;
+                            closestEnemy1 = e;
                         }
                     }
                     minEnemyDist2 = (float) Math.sqrt(minEnemyDist2);
                     minEnemyDist1 = (float) Math.sqrt(minEnemyDist1);
                     Entity closestFemalePartner = null;
-                    float minFemalePartnerDist = (W * W) + (H * H);
+                    float minFemalePartnerDist = maxDist;
                     if (closestEnemy1 == null
                             & currentEntity.fullness >= 1f
                             & !currentEntity.estrus
                             & currentEntity.currentHealth == currentEntity.maxHealth)
                         for (Entity e : entities) {
                             if (currentEntity == e)
+                                continue;
+                            if ((Math.abs(currentEntity.x - e.x) > sightDistance) & (W - Math.abs(currentEntity.x - e.x) > sightDistance)
+                                    | (Math.abs(currentEntity.y - e.y) > sightDistance) & (H - Math.abs(currentEntity.y - e.y) > sightDistance))
                                 continue;
                             if (currentEntity.intelligence >= e.intelligence) {
                                 if (currentEntity.force >= e.force * minExcess)
@@ -201,21 +218,22 @@ public class Main {
                                 continue;
                             if (twin(currentEntity, e)) continue;
                             float dist = getDist(currentEntity, e);
-                            if (dist < sightDistance * sightDistance) {
-                                if (dist < minFemalePartnerDist) {
-                                    minFemalePartnerDist = dist;
-                                    closestFemalePartner = e;
-                                }
+                            if (dist < minFemalePartnerDist) {
+                                minFemalePartnerDist = dist;
+                                closestFemalePartner = e;
                             }
                         }
                     Entity closestFood = null;
                     int indexClosestFood = 0;
-                    float minFoodDist = (W * W) + (H * H);
+                    float minFoodDist = maxDist;
                     if (closestEnemy1 == null
                             & closestFemalePartner == null
                             & currentEntity.currentHealth == currentEntity.maxHealth)
                         for (Entity e : entities) {
                             if (currentEntity == e)
+                                continue;
+                            if ((Math.abs(currentEntity.x - e.x) > sightDistance) & (W - Math.abs(currentEntity.x - e.x) > sightDistance)
+                                    | (Math.abs(currentEntity.y - e.y) > sightDistance) & (H - Math.abs(currentEntity.y - e.y) > sightDistance))
                                 continue;
                             if (currentEntity.intelligence >= e.intelligence) {
                                 if (currentEntity.force <= e.force * minExcess)
@@ -223,16 +241,15 @@ public class Main {
                             } else if (currentEntity.force <= e.force * (e.intelligence / currentEntity.intelligence) * minExcess)
                                 continue;
                             float dist = getDist(currentEntity, e);
-                            if (dist < sightDistance * sightDistance) {
-                                if (dist < minFoodDist) {
-                                    minFoodDist = dist;
-                                    closestFood = e;
-                                    indexClosestFood = entities.indexOf(e);
-                                }
+                            if (dist < minFoodDist) {
+                                minFoodDist = dist;
+                                closestFood = e;
+                                indexClosestFood = entities.indexOf(e);
                             }
                         }
+                    minFoodDist = (float) Math.sqrt(minFoodDist);
                     Entity closestMalePartner = null;
-                    float minMalePartnerDist = (W * W) + (H * H);
+                    float minMalePartnerDist = maxDistPartner;
                     if (closestEnemy1 == null
                             & currentEntity.currentEstrusDuration == estrusDuration)
                         for (Entity e : entities) {
@@ -241,12 +258,13 @@ public class Main {
                                     | e == closestFood
                                     | twin(currentEntity, e))
                                 continue;
+                            if ((Math.abs(currentEntity.x - e.x) > radiusEntity) & (W - Math.abs(currentEntity.x - e.x) > radiusEntity)
+                                    | (Math.abs(currentEntity.y - e.y) > radiusEntity) & (H - Math.abs(currentEntity.y - e.y) > radiusEntity))
+                                continue;
                             float dist = getDist(currentEntity, e);
-                            if (dist < radiusEntity * radiusEntity) {
-                                if (dist < minMalePartnerDist) {
-                                    minMalePartnerDist = dist;
-                                    closestMalePartner = e;
-                                }
+                            if (dist < minMalePartnerDist) {
+                                minMalePartnerDist = dist;
+                                closestMalePartner = e;
                             }
                         }
                     currentEntityIndex = actions(currentEntityIndex, currentEntity, closestEnemy1, closestEnemy2, minEnemyDist1, minEnemyDist2, closestFemalePartner, closestFood, indexClosestFood, minFoodDist);
@@ -330,7 +348,7 @@ public class Main {
                             currentEntity.ty = -closestFood.y + currentEntity.y;
                         else
                             currentEntity.ty = closestFood.y - currentEntity.y;
-                        if (minFoodDist < radiusEntity * radiusEntity) {
+                        if (minFoodDist < radiusEntity) {
                             currentEntity.currentHealth *= 1 - (closestFood.force / currentEntity.force) * (closestFood.force / currentEntity.force);
                             currentEntity.fullness += closestFood.fullness * (0.75f - closestFood.toxicity);
                             entities.remove(indexClosestFood);
@@ -403,30 +421,44 @@ public class Main {
                     newEntity.maxSpeed = (float) (newEntity.maxSpeed * (1 - Math.random() * coefMutation));
                 else
                     newEntity.maxSpeed = (float) (newEntity.maxSpeed + (1 - newEntity.maxSpeed) * Math.random() * coefMutation);
+            }
+            if (Math.random() < chanceMutation) {
                 if (Math.random() < 0.5f)
                     newEntity.force = (float) (newEntity.force * (1 - Math.random() * coefMutation));
                 else
                     newEntity.force = (float) (newEntity.force + (1 - newEntity.force) * Math.random() * coefMutation);
+            }
+            if (Math.random() < chanceMutation) {
                 if (Math.random() < 0.5f)
                     newEntity.toxicity = (float) (newEntity.toxicity * (1 - Math.random() * coefMutation));
                 else
                     newEntity.toxicity = (float) (newEntity.toxicity + (1 - newEntity.toxicity) * Math.random() * coefMutation);
+            }
+            if (Math.random() < chanceMutation) {
                 if (Math.random() < 0.5f)
                     newEntity.recoverySpeed = (float) (newEntity.recoverySpeed * (1 - Math.random() * coefMutation));
                 else
                     newEntity.recoverySpeed = (float) (newEntity.recoverySpeed + (1 - newEntity.recoverySpeed) * Math.random() * coefMutation);
+            }
+            if (Math.random() < chanceMutation) {
                 if (Math.random() < 0.5f)
                     newEntity.maxHealth = (float) (newEntity.maxHealth * (1 - Math.random() * coefMutation));
                 else
                     newEntity.maxHealth = (float) (newEntity.maxHealth + (1 - newEntity.maxHealth) * Math.random() * coefMutation);
+            }
+            if (Math.random() < chanceMutation) {
                 if (Math.random() < 0.5f)
                     newEntity.recoveryHealth = (float) (newEntity.recoveryHealth * (1 - Math.random() * coefMutation));
                 else
                     newEntity.recoveryHealth = (float) (newEntity.recoveryHealth + (1 - newEntity.recoveryHealth) * Math.random() * coefMutation);
+            }
+            if (Math.random() < chanceMutation) {
                 if (Math.random() < 0.5f)
                     newEntity.maxAge = (float) (newEntity.maxAge * (1 - Math.random() * coefMutation));
                 else
                     newEntity.maxAge = (float) (newEntity.maxAge + (1 - newEntity.maxAge) * Math.random() * coefMutation);
+            }
+            if (Math.random() < chanceMutation) {
                 if (Math.random() < 0.5f)
                     newEntity.intelligence = (float) (newEntity.intelligence * (1 - Math.random() * coefMutation));
                 else
