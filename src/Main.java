@@ -2,6 +2,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Random;
 
 class Entity  {
     public float x;
@@ -47,24 +48,20 @@ public class Main {
     final float chanceMutation = 1 / 8f;
     final float coefFullnessIncrease = 0.001f;
     final float coefFullnessExcess = 0.00003f / coefFullnessIncrease;
-    final float coefFullnessChange = coefFullnessIncrease / 8 * (1 - coefFullnessExcess);
-    int logicOnRenderingRate = 32;
+    final float coefFullnessChange = coefFullnessIncrease / 8 / 0.15470053f * (1 - coefFullnessExcess);
     final int estrusDuration = 1024;
     final int pregnancyDuration = 1024;
-    final int normalLifeSpan = 65536;
-    float sumAggressiveness;
-    float sumMaxSpeed;
-    float sumForce;
-    float sumImmunity;
-    float sumMaxAge;
-    float sumRecoverySpeed;
-    float sumMaxHealth;
-    float sumRecoveryHealth;
+    final int maxLifeSpan = 262144;
+    final float coefNaturalDead = 0.0001f;
+    final float minFullness = 1 / 4f;
+    final float countParam = 8f;
+    final float capacityFactor = 10f;
+    final float maxDist = sightDistance * sightDistance;
+    final float maxDistPartner = radiusEntity * radiusEntity;
     ArrayList<Entity> entities = new ArrayList<>();
+    int logicOnRenderingRate = 32;
     int countCycles = 0;
     int countDead = 0;
-    float maxDist = sightDistance * sightDistance;
-    float maxDistPartner = radiusEntity * radiusEntity;
     int deathFromExhaustion = 0;
     int deathNatural = 0;
     int deathByKilling = 0;
@@ -73,6 +70,14 @@ public class Main {
     int sexualReproduction = 0;
     boolean signatures = false;
     boolean play = true;
+    float sumAggressiveness;
+    float sumMaxSpeed;
+    float sumForce;
+    float sumImmunity;
+    float sumMaxAge;
+    float sumRecoverySpeed;
+    float sumMaxHealth;
+    float sumRecoveryHealth;
 
     public static void main(String[] args) {
         new Main();
@@ -98,12 +103,15 @@ public class Main {
             killHalf.addActionListener(e -> killHalf());
             JButton signatures = new JButton("Signatures");
             signatures.addActionListener(e -> signatures());
+            JButton reset = new JButton("Reset");
+            reset.addActionListener(e -> reset());
             topPanel.add(playPause);
             topPanel.add(slow);
             topPanel.add(fast);
             topPanel.add(addEntity);
             topPanel.add(killHalf);
             topPanel.add(signatures);
+            topPanel.add(reset);
             Container contentPane = frame.getContentPane();
             contentPane.add("North", topPanel);
             frame.add(new FormPane(), BorderLayout.CENTER);
@@ -115,6 +123,21 @@ public class Main {
 
     private void signatures() {
         signatures = !signatures;
+    }
+
+    private void reset() {
+        entities.clear();
+        logicOnRenderingRate = 32;
+        countCycles = 0;
+        countDead = 0;
+        deathFromExhaustion = 0;
+        deathNatural = 0;
+        deathByKilling = 0;
+        deathManually = 0;
+        asexualReproduction = 0;
+        sexualReproduction = 0;
+        signatures = false;
+        play = true;
     }
 
     private void playPause() {
@@ -167,7 +190,7 @@ public class Main {
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             for (int i = 0; i < logicOnRenderingRate; i++)
-                if(play)
+                if (play)
                     logic();
             draw(g);
         }
@@ -178,6 +201,7 @@ public class Main {
             g2.setColor(new Color(255, 255, 255, 255));
             g2.fillRect(0, 0, W, H);
             g2.setColor(new Color(0, 0, 0, 255));
+            /*
             ArrayList<Float> aggressiveness = new ArrayList<>();
             for (Entity a : entities) {
                 aggressiveness.add(a.aggressiveness);
@@ -214,6 +238,7 @@ public class Main {
                 float a = maxSpeed.get(i);
                 g2.fillRect(i + 25, 650 - (int) (a * 50), 1, (int) (a * 50));
             }
+             */
             for (Entity a : entities) {
                 g2.setColor(new Color(Math.round(a.aggressiveness * 255), Math.round(a.immunity * 255), Math.round(a.force * 255), Math.round(a.currentHealth * 255)));
                 g2.fillOval((int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)), (int) (radiusEntity * Math.sqrt(a.fullness) * 2), (int) (radiusEntity * Math.sqrt(a.fullness)) * 2);
@@ -272,7 +297,7 @@ public class Main {
             for (int currentEntityIndex = 0; currentEntityIndex < entities.size(); currentEntityIndex++) {
                 Entity currentEntity = entities.get(currentEntityIndex);
                 if (currentEntity.alive) {
-                    if (Math.random() < 0.00008 * (1 - currentEntity.immunity) * (currentEntity.currentAge / (normalLifeSpan / (1f - currentEntity.maxAge)))) {
+                    if (Math.random() < coefNaturalDead * ((entities.size() + countDead) / capacityFactor) * ((entities.size() + countDead) / capacityFactor) * (1 - currentEntity.immunity) * (currentEntity.currentAge / (maxLifeSpan * currentEntity.maxAge))) {
                         dead(currentEntity);
                         deathNatural++;
                         continue;
@@ -319,7 +344,7 @@ public class Main {
                         }
                     }
                     if (closestEnemy1 != null & closestEnemy2 != null)
-                        if(alien(closestEnemy1, currentEntity) & !alien(closestEnemy2, currentEntity))
+                        if (alien(closestEnemy1, currentEntity) & !alien(closestEnemy2, currentEntity))
                             closestEnemy2 = null;
                     minEnemyDist2 = (float) Math.sqrt(minEnemyDist2);
                     minEnemyDist1 = (float) Math.sqrt(minEnemyDist1);
@@ -481,15 +506,15 @@ public class Main {
                         currentEntity.currentPregnancyDuration = 0;
                         currentEntity.malePartner = null;
                     }
-                    currentEntity.fullness -= ((1 / (1 - currentEntity.maxSpeed)) - 1) * coefFullnessChange;
-                    currentEntity.fullness -= ((1 / (1 - currentEntity.immunity)) - 1) * coefFullnessChange;
-                    currentEntity.fullness -= ((1 / (1 - currentEntity.aggressiveness)) - 1) * coefFullnessChange;
-                    currentEntity.fullness -= ((1 / (1 - currentEntity.force)) - 1) * coefFullnessChange;
-                    currentEntity.fullness -= ((1 / (1 - currentEntity.recoverySpeed)) - 1) * coefFullnessChange;
-                    currentEntity.fullness -= ((1 / (1 - currentEntity.maxHealth)) - 1) * coefFullnessChange;
-                    currentEntity.fullness -= ((1 / (1 - currentEntity.recoveryHealth)) - 1) * coefFullnessChange;
-                    currentEntity.fullness -= ((1 / (1 - currentEntity.maxAge)) - 1) * coefFullnessChange;
-                    if (currentEntity.fullness <= 1 / 8f) {
+                    currentEntity.fullness -= getCost(currentEntity.aggressiveness) * coefFullnessChange;
+                    currentEntity.fullness -= getCost(currentEntity.force) * coefFullnessChange;
+                    currentEntity.fullness -= getCost(currentEntity.immunity) * coefFullnessChange;
+                    currentEntity.fullness -= getCost(currentEntity.maxSpeed) * coefFullnessChange;
+                    currentEntity.fullness -= getCost(currentEntity.recoverySpeed) * coefFullnessChange;
+                    currentEntity.fullness -= getCost(currentEntity.maxHealth) * coefFullnessChange;
+                    currentEntity.fullness -= getCost(currentEntity.recoveryHealth) * coefFullnessChange;
+                    currentEntity.fullness -= getCost(currentEntity.maxAge) * coefFullnessChange;
+                    if (currentEntity.fullness <= minFullness) {
                         dead(currentEntity);
                         deathFromExhaustion++;
                         continue;
@@ -507,6 +532,10 @@ public class Main {
             }
         }
 
+        private float getCost(float par) {
+            return (float) (1 / Math.sqrt(1 - par * par) - 1);
+        }
+
         private void reproduction(Entity currentEntity) {
             currentEntity.fullness = currentEntity.fullness - 2f;
             Entity newEntity = new Entity(currentEntity.x + (float) Math.random() * 10 - 5, currentEntity.y + (float) Math.random() * 10 - 5);
@@ -521,65 +550,41 @@ public class Main {
                 newEntity.maxAge = currentEntity.maxAge;
                 asexualReproduction++;
             } else {
-                newEntity.maxSpeed = 1 - 1 / ((((1 / (1 - currentEntity.maxSpeed)) - 1) + ((1 / (1 - currentEntity.malePartner.maxSpeed)) - 1)) / 2 + 1);
-                newEntity.force = 1 - 1 / ((((1 / (1 - currentEntity.force)) - 1) + ((1 / (1 - currentEntity.malePartner.force)) - 1)) / 2 + 1);
-                newEntity.aggressiveness = 1 - 1 / ((((1 / (1 - currentEntity.aggressiveness)) - 1) + ((1 / (1 - currentEntity.malePartner.aggressiveness)) - 1)) / 2 + 1);
-                newEntity.immunity = 1 - 1 / ((((1 / (1 - currentEntity.immunity)) - 1) + ((1 / (1 - currentEntity.malePartner.immunity)) - 1)) / 2 + 1);
-                newEntity.recoverySpeed = 1 - 1 / ((((1 / (1 - currentEntity.recoverySpeed)) - 1) + ((1 / (1 - currentEntity.malePartner.recoverySpeed)) - 1)) / 2 + 1);
-                newEntity.maxHealth = 1 - 1 / ((((1 / (1 - currentEntity.maxHealth)) - 1) + ((1 / (1 - currentEntity.malePartner.maxHealth)) - 1)) / 2 + 1);
-                newEntity.recoveryHealth = 1 - 1 / ((((1 / (1 - currentEntity.recoveryHealth)) - 1) + ((1 / (1 - currentEntity.malePartner.recoveryHealth)) - 1)) / 2 + 1);
-                newEntity.maxAge = 1 - 1 / ((((1 / (1 - currentEntity.maxAge)) - 1) + ((1 / (1 - currentEntity.malePartner.maxAge)) - 1)) / 2 + 1);
+                newEntity.aggressiveness = getHybrid(currentEntity.aggressiveness, currentEntity.malePartner.aggressiveness);
+                newEntity.force = getHybrid(currentEntity.force, currentEntity.malePartner.force);
+                newEntity.immunity = getHybrid(currentEntity.immunity, currentEntity.malePartner.immunity);
+                newEntity.maxSpeed = getHybrid(currentEntity.maxSpeed, currentEntity.malePartner.maxSpeed);
+                newEntity.recoverySpeed = getHybrid(currentEntity.recoverySpeed, currentEntity.malePartner.recoverySpeed);
+                newEntity.maxHealth = getHybrid(currentEntity.maxHealth, currentEntity.malePartner.maxHealth);
+                newEntity.recoveryHealth = getHybrid(currentEntity.recoveryHealth, currentEntity.malePartner.recoveryHealth);
+                newEntity.maxAge = getHybrid(currentEntity.maxAge, currentEntity.malePartner.maxAge);
                 sexualReproduction++;
             }
             if (Math.random() < chanceMutation)
-                switch ((int) Math.ceil(Math.random() * 8)) {
+                switch ((int) Math.ceil(Math.random() * countParam)) {
                     case 1:
-                        if (Math.random() < 0.5f)
-                            newEntity.maxSpeed = (float) (newEntity.maxSpeed * (1 - Math.random() * Math.random() * Math.random()));
-                        else
-                            newEntity.maxSpeed = (float) (newEntity.maxSpeed + (1 - newEntity.maxSpeed) * Math.random() * Math.random() * Math.random());
+                        newEntity.aggressiveness = getMutation(newEntity.aggressiveness);
                         break;
                     case 2:
-                        if (Math.random() < 0.5f)
-                            newEntity.aggressiveness = (float) (newEntity.aggressiveness * (1 - Math.random() * Math.random() * Math.random()));
-                        else
-                            newEntity.aggressiveness = (float) (newEntity.aggressiveness + (1 - newEntity.aggressiveness) * Math.random() * Math.random() * Math.random());
+                        newEntity.force = getMutation(newEntity.force);
                         break;
                     case 3:
-                        if (Math.random() < 0.5f)
-                            newEntity.immunity = (float) (newEntity.immunity * (1 - Math.random() * Math.random() * Math.random()));
-                        else
-                            newEntity.immunity = (float) (newEntity.immunity + (1 - newEntity.immunity) * Math.random() * Math.random() * Math.random());
+                        newEntity.immunity = getMutation(newEntity.immunity);
                         break;
                     case 4:
-                        if (Math.random() < 0.5f)
-                            newEntity.recoverySpeed = (float) (newEntity.recoverySpeed * (1 - Math.random() * Math.random() * Math.random()));
-                        else
-                            newEntity.recoverySpeed = (float) (newEntity.recoverySpeed + (1 - newEntity.recoverySpeed) * Math.random() * Math.random() * Math.random());
+                        newEntity.maxSpeed = getMutation(newEntity.maxSpeed);
                         break;
                     case 5:
-                        if (Math.random() < 0.5f)
-                            newEntity.maxHealth = (float) (newEntity.maxHealth * (1 - Math.random() * Math.random() * Math.random()));
-                        else
-                            newEntity.maxHealth = (float) (newEntity.maxHealth + (1 - newEntity.maxHealth) * Math.random() * Math.random() * Math.random());
+                        newEntity.recoverySpeed = getMutation(newEntity.recoverySpeed);
                         break;
                     case 6:
-                        if (Math.random() < 0.5f)
-                            newEntity.recoveryHealth = (float) (newEntity.recoveryHealth * (1 - Math.random() * Math.random() * Math.random()));
-                        else
-                            newEntity.recoveryHealth = (float) (newEntity.recoveryHealth + (1 - newEntity.recoveryHealth) * Math.random() * Math.random() * Math.random());
+                        newEntity.maxHealth = getMutation(newEntity.maxHealth);
                         break;
                     case 7:
-                        if (Math.random() < 0.5f)
-                            newEntity.maxAge = (float) (newEntity.maxAge * (1 - Math.random() * Math.random() * Math.random()));
-                        else
-                            newEntity.maxAge = (float) (newEntity.maxAge + (1 - newEntity.maxAge) * Math.random() * Math.random() * Math.random());
+                        newEntity.recoveryHealth = getMutation(newEntity.recoveryHealth);
                         break;
                     case 8:
-                        if (Math.random() < 0.5f)
-                            newEntity.force = (float) (newEntity.force * (1 - Math.random() * Math.random() * Math.random()));
-                        else
-                            newEntity.force = (float) (newEntity.force + (1 - newEntity.force) * Math.random() * Math.random() * Math.random());
+                        newEntity.maxAge = getMutation(newEntity.maxAge);
                         break;
                 }
             newEntity.currentSpeed = newEntity.maxSpeed;
@@ -587,42 +592,86 @@ public class Main {
             entities.add(newEntity);
         }
 
+        private float getHybrid(float par1, float par2) {
+            return (float) Math.sqrt(1f - Math.pow(1f / (((1f / Math.sqrt(1f - par1 * par1) - 1f) + (1f / Math.sqrt(1f - par2 * par2) - 1f)) / 2f + 1f), 2f));
+        }
+
+        private float getMutation(float par) {
+            float coef = (float) new Random().nextGaussian();
+            if (coef >= 0)
+                return (float) Math.sqrt(1f - Math.pow(1f / ((1f / Math.sqrt(1f - par * par) - 1f) * (1f + coef) + 1f), 2f));
+            else
+                return (float) Math.sqrt(1f - Math.pow(1f / ((1f / Math.sqrt(1f - par * par) - 1f) / (1f - coef) + 1f), 2f));
+        }
+
         private boolean twin(Entity currentEntity, Entity e) {
-            if (Math.max(((1 / (1 - currentEntity.maxHealth)) - 1), ((1 / (1 - e.maxHealth)) - 1)) / Math.min(((1 / (1 - currentEntity.maxHealth)) - 1), ((1 / (1 - e.maxHealth)) - 1)) > 1.133333f)
+            float costE = getCost(e.aggressiveness);
+            float costCur = getCost(currentEntity.aggressiveness);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 2f)
                 return false;
-            if (Math.max(((1 / (1 - currentEntity.recoveryHealth)) - 1), ((1 / (1 - e.recoveryHealth)) - 1)) / Math.min(((1 / (1 - currentEntity.recoveryHealth)) - 1), ((1 / (1 - e.recoveryHealth)) - 1)) > 1.133333f)
+            costE = getCost(e.force);
+            costCur = getCost(currentEntity.force);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 2f)
                 return false;
-            if (Math.max(((1 / (1 - currentEntity.aggressiveness)) - 1), ((1 / (1 - e.aggressiveness)) - 1)) / Math.min(((1 / (1 - currentEntity.aggressiveness)) - 1), ((1 / (1 - e.aggressiveness)) - 1)) > 1.133333f)
+            costE = getCost(e.immunity);
+            costCur = getCost(currentEntity.immunity);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 2f)
                 return false;
-            if (Math.max(((1 / (1 - currentEntity.force)) - 1), ((1 / (1 - e.force)) - 1)) / Math.min(((1 / (1 - currentEntity.force)) - 1), ((1 / (1 - e.force)) - 1)) > 1.133333f)
+            costE = getCost(e.maxSpeed);
+            costCur = getCost(currentEntity.maxSpeed);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 2f)
                 return false;
-            if (Math.max(((1 / (1 - currentEntity.maxSpeed)) - 1), ((1 / (1 - e.maxSpeed)) - 1)) / Math.min(((1 / (1 - currentEntity.maxSpeed)) - 1), ((1 / (1 - e.maxSpeed)) - 1)) > 1.133333f)
+            costE = getCost(e.recoverySpeed);
+            costCur = getCost(currentEntity.recoverySpeed);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 2f)
                 return false;
-            if (Math.max(((1 / (1 - currentEntity.maxAge)) - 1), ((1 / (1 - e.maxAge)) - 1)) / Math.min(((1 / (1 - currentEntity.maxAge)) - 1), ((1 / (1 - e.maxAge)) - 1)) > 1.133333f)
+            costE = getCost(e.maxHealth);
+            costCur = getCost(currentEntity.maxHealth);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 2f)
                 return false;
-            if (Math.max(((1 / (1 - currentEntity.recoverySpeed)) - 1), ((1 / (1 - e.recoverySpeed)) - 1)) / Math.min(((1 / (1 - currentEntity.recoverySpeed)) - 1), ((1 / (1 - e.recoverySpeed)) - 1)) > 1.133333f)
+            costE = getCost(e.recoveryHealth);
+            costCur = getCost(currentEntity.recoveryHealth);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 2f)
                 return false;
-            if (Math.max(((1 / (1 - currentEntity.immunity)) - 1), ((1 / (1 - e.immunity)) - 1)) / Math.min(((1 / (1 - currentEntity.immunity)) - 1), ((1 / (1 - e.immunity)) - 1)) > 1.133333f)
+            costE = getCost(e.maxAge);
+            costCur = getCost(currentEntity.maxAge);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 2f)
                 return false;
             return true;
         }
 
         private boolean alien(Entity currentEntity, Entity e) {
-            if (Math.max(((1 / (1 - currentEntity.maxHealth)) - 1), ((1 / (1 - e.maxHealth)) - 1)) / Math.min(((1 / (1 - currentEntity.maxHealth)) - 1), ((1 / (1 - e.maxHealth)) - 1)) > 3f)
+            float costE = getCost(e.aggressiveness);
+            float costCur = getCost(currentEntity.aggressiveness);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 3f)
                 return true;
-            if (Math.max(((1 / (1 - currentEntity.recoveryHealth)) - 1), ((1 / (1 - e.recoveryHealth)) - 1)) / Math.min(((1 / (1 - currentEntity.recoveryHealth)) - 1), ((1 / (1 - e.recoveryHealth)) - 1)) > 3f)
+            costE = getCost(e.force);
+            costCur = getCost(currentEntity.force);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 3f)
                 return true;
-            if (Math.max(((1 / (1 - currentEntity.aggressiveness)) - 1), ((1 / (1 - e.aggressiveness)) - 1)) / Math.min(((1 / (1 - currentEntity.aggressiveness)) - 1), ((1 / (1 - e.aggressiveness)) - 1)) > 3f)
+            costE = getCost(e.immunity);
+            costCur = getCost(currentEntity.immunity);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 3f)
                 return true;
-            if (Math.max(((1 / (1 - currentEntity.force)) - 1), ((1 / (1 - e.force)) - 1)) / Math.min(((1 / (1 - currentEntity.force)) - 1), ((1 / (1 - e.force)) - 1)) > 3f)
+            costE = getCost(e.maxSpeed);
+            costCur = getCost(currentEntity.maxSpeed);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 3f)
                 return true;
-            if (Math.max(((1 / (1 - currentEntity.maxSpeed)) - 1), ((1 / (1 - e.maxSpeed)) - 1)) / Math.min(((1 / (1 - currentEntity.maxSpeed)) - 1), ((1 / (1 - e.maxSpeed)) - 1)) > 3f)
+            costE = getCost(e.recoverySpeed);
+            costCur = getCost(currentEntity.recoverySpeed);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 3f)
                 return true;
-            if (Math.max(((1 / (1 - currentEntity.maxAge)) - 1), ((1 / (1 - e.maxAge)) - 1)) / Math.min(((1 / (1 - currentEntity.maxAge)) - 1), ((1 / (1 - e.maxAge)) - 1)) > 3f)
+            costE = getCost(e.maxHealth);
+            costCur = getCost(currentEntity.maxHealth);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 3f)
                 return true;
-            if (Math.max(((1 / (1 - currentEntity.recoverySpeed)) - 1), ((1 / (1 - e.recoverySpeed)) - 1)) / Math.min(((1 / (1 - currentEntity.recoverySpeed)) - 1), ((1 / (1 - e.recoverySpeed)) - 1)) > 3f)
+            costE = getCost(e.recoveryHealth);
+            costCur = getCost(currentEntity.recoveryHealth);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 3f)
                 return true;
-            if (Math.max(((1 / (1 - currentEntity.immunity)) - 1), ((1 / (1 - e.immunity)) - 1)) / Math.min(((1 / (1 - currentEntity.immunity)) - 1), ((1 / (1 - e.immunity)) - 1)) > 3f)
+            costE = getCost(e.maxAge);
+            costCur = getCost(currentEntity.maxAge);
+            if (Math.max(costE, costCur) / Math.min(costE, costCur) > 3f)
                 return true;
             return false;
         }
