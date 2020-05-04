@@ -29,6 +29,13 @@ class Entity  {
     public boolean estrus = false;
     public int currentEstrusDuration;
     public boolean pregnancy = false;
+    public Status tmpStatus;
+    enum Status {
+        alien,
+        insider,
+        twin
+    }
+    public boolean tmpCheckDist;
     public int currentPregnancyDuration;
     public Entity malePartner;
 
@@ -297,6 +304,15 @@ public class Main {
             for (int currentEntityIndex = 0; currentEntityIndex < entities.size(); currentEntityIndex++) {
                 Entity currentEntity = entities.get(currentEntityIndex);
                 if (currentEntity.alive) {
+                    for (Entity e : entities) {
+                        if (twin(currentEntity, e))
+                            e.tmpStatus = Entity.Status.twin;
+                        else if (alien(currentEntity, e))
+                            e.tmpStatus = Entity.Status.alien;
+                        else
+                            e.tmpStatus = Entity.Status.insider;
+                        e.tmpCheckDist = checkDist(currentEntity, e, sightDistance);
+                    }
                     if (Math.random() < coefNaturalDead * ((entities.size() + countDead) / capacityFactor) * ((entities.size() + countDead) / capacityFactor) * (1 - currentEntity.immunity) * (currentEntity.currentAge / (maxLifeSpan * currentEntity.maxAge))) {
                         dead(currentEntity);
                         deathNatural++;
@@ -331,9 +347,9 @@ public class Main {
                     float minEnemyDist2 = maxDist;
                     for (Entity e : entities) {
                         if (currentEntity != e
-                                & checkDist(currentEntity, e, sightDistance)
-                                & ((alien(currentEntity, e) & currentEntity.aggressiveness < e.aggressiveness)
-                                | (insider(currentEntity, e) & currentEntity.aggressiveness < e.aggressiveness & !currentEntity.estrus & !e.estrus))) {
+                                & e.tmpCheckDist
+                                & ((e.tmpStatus == Entity.Status.alien & currentEntity.aggressiveness < e.aggressiveness)
+                                | (e.tmpStatus == Entity.Status.insider & currentEntity.aggressiveness < e.aggressiveness & !currentEntity.estrus & !e.estrus))) {
                             float dist = getDist(currentEntity, e);
                             if (dist < minEnemyDist1) {
                                 minEnemyDist2 = minEnemyDist1;
@@ -344,7 +360,7 @@ public class Main {
                         }
                     }
                     if (closestEnemy1 != null & closestEnemy2 != null)
-                        if (alien(closestEnemy1, currentEntity) & !alien(closestEnemy2, currentEntity))
+                        if (closestEnemy1.tmpStatus == Entity.Status.alien & !(closestEnemy2.tmpStatus == Entity.Status.alien))
                             closestEnemy2 = null;
                     minEnemyDist2 = (float) Math.sqrt(minEnemyDist2);
                     minEnemyDist1 = (float) Math.sqrt(minEnemyDist1);
@@ -357,9 +373,9 @@ public class Main {
                             & currentEntity.currentHealth == currentEntity.maxHealth)
                         for (Entity e : entities) {
                             if (currentEntity != e
-                                    & checkDist(currentEntity, e, sightDistance)
+                                    & e.tmpCheckDist
                                     & e.estrus
-                                    & insider(currentEntity, e)) {
+                                    & e.tmpStatus == Entity.Status.insider) {
                                 float dist = getDist(currentEntity, e);
                                 if (dist < minFemalePartnerDist) {
                                     minFemalePartnerDist = dist;
@@ -377,9 +393,9 @@ public class Main {
                             & currentEntity.currentHealth == currentEntity.maxHealth)
                         for (Entity e : entities) {
                             if (currentEntity != e
-                                    & checkDist(currentEntity, e, sightDistance)
+                                    & e.tmpCheckDist
                                     & currentEntity.aggressiveness > e.aggressiveness
-                                    & alien(currentEntity, e)) {
+                                    & e.tmpStatus == Entity.Status.alien) {
                                 float dist = getDist(currentEntity, e);
                                 if (dist < minFoodDist) {
                                     minFoodDist = dist;
@@ -395,7 +411,7 @@ public class Main {
                         for (Entity e : entities) {
                             if (currentEntity != e
                                     & e.alive
-                                    & insider(currentEntity, e)
+                                    & e.tmpStatus == Entity.Status.insider
                                     & checkDist(currentEntity, e, radiusEntity)) {
                                 float dist = getDist(currentEntity, e);
                                 if (dist < minMalePartnerDist) {
@@ -674,10 +690,6 @@ public class Main {
             if (Math.max(costE, costCur) / Math.min(costE, costCur) > 3f)
                 return true;
             return false;
-        }
-
-        private boolean insider(Entity currentEntity, Entity e) {
-            return !twin(currentEntity, e) & !alien(currentEntity, e);
         }
 
         private float getDist(Entity currentEntity, Entity e) {
