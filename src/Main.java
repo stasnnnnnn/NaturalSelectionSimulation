@@ -55,14 +55,14 @@ public class Main {
     final float chanceMutation = 1 / 8f;
     final float coefFullnessIncrease = 0.001f;
     final float coefFullnessExcess = 0.00003f / coefFullnessIncrease;
-    final float coefFullnessChange = coefFullnessIncrease / 8 / 0.15470053f * (1 - coefFullnessExcess);
+    final float coefFullnessChange = coefFullnessIncrease / 8 / 0.16f * (1 - coefFullnessExcess);
     final int estrusDuration = 1024;
     final int pregnancyDuration = 1024;
     final int maxLifeSpan = 262144;
     final float coefNaturalDead = 0.0001f;
     final float minFullness = 1 / 4f;
     final float countParam = 8f;
-    final float capacityFactor = 10f;
+    final float capacityFactor = 50f;
     final float maxDist = sightDistance * sightDistance;
     final float maxDistPartner = radiusEntity * radiusEntity;
     ArrayList<Entity> entities = new ArrayList<>();
@@ -376,13 +376,16 @@ public class Main {
                             e.tmpStatus = Entity.Status.insider;
                         e.tmpCheckDist = checkDist(currentEntity, e, sightDistance);
                     }
-                    if (Math.random() < coefNaturalDead * ((entities.size() + countDead) / capacityFactor) * ((entities.size() + countDead) / capacityFactor) * (1 - currentEntity.immunity) * (currentEntity.currentAge / (maxLifeSpan * currentEntity.maxAge))) {
+                    if (Math.random() < coefNaturalDead * (1 - currentEntity.immunity) * (currentEntity.currentAge / (maxLifeSpan * currentEntity.maxAge))) {
                         dead(currentEntity);
                         deathNatural++;
                         continue;
                     }
                     currentEntity.currentAge++;
-                    currentEntity.fullness += coefFullnessIncrease;
+                    if((entities.size() - countDead) <= capacityFactor)
+                        currentEntity.fullness += coefFullnessIncrease;
+                    else
+                        currentEntity.fullness += coefFullnessIncrease * capacityFactor / (entities.size() - countDead);
                     if (currentEntity.currentHealth < currentEntity.maxHealth)
                         currentEntity.currentHealth += currentEntity.coefHealthIncrease;
                     else if (currentEntity.currentHealth > currentEntity.maxHealth)
