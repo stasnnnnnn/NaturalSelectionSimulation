@@ -53,15 +53,16 @@ public class Main {
     final float directionChangeRate = 0.001f;
     final float radiusEntity = 8f;
     final float chanceMutation = 1 / 8f;
+    final int countParam = 8;
+    final float initialCosts = 0.15470053f;
     final float coefFullnessIncrease = 0.001f;
-    final float coefFullnessExcess = 0.00003f / coefFullnessIncrease;
-    final float coefFullnessChange = coefFullnessIncrease / 8 / 0.16f * (1 - coefFullnessExcess);
-    final int estrusDuration = 1024;
-    final int pregnancyDuration = 1024;
+    final float coefFullnessExcess = 0.00005f / coefFullnessIncrease;
+    final float coefFullnessChange = coefFullnessIncrease / countParam / initialCosts * (1 - coefFullnessExcess);
+    final int estrusDuration = 2048;
+    final int pregnancyDuration = 2048;
     final int maxLifeSpan = 262144;
     final float coefNaturalDead = 0.0001f;
     final float minFullness = 1 / 4f;
-    final float countParam = 8f;
     final float capacityFactor = 50f;
     final float maxDist = sightDistance * sightDistance;
     final float maxDistPartner = radiusEntity * radiusEntity;
@@ -71,22 +72,14 @@ public class Main {
     int countDead = 0;
     int deathFromExhaustion = 0;
     int deathNatural = 0;
-    int deathByKilling = 0;
+    int deathByKillingAttacking = 0;
+    int deathByKillingDefender = 0;
     int deathManually = 0;
     int asexualReproduction = 0;
     int sexualReproduction = 0;
     boolean signatures = false;
     boolean play = true;
-    boolean distribution = false;
     boolean statistics = false;
-    float sumAggressiveness;
-    float sumMaxSpeed;
-    float sumForce;
-    float sumImmunity;
-    float sumMaxAge;
-    float sumRecoverySpeed;
-    float sumMaxHealth;
-    float sumRecoveryHealth;
 
     public static void main(String[] args) {
         new Main();
@@ -110,8 +103,6 @@ public class Main {
             statistics.addActionListener(e -> statistics());
             JButton signatures = new JButton("Signatures");
             signatures.addActionListener(e -> signatures());
-            JButton distribution = new JButton("Distribution");
-            distribution.addActionListener(e -> distribution());
             JButton addEntity = new JButton("Add entity");
             addEntity.addActionListener(e -> addEntity());
             JButton killHalf = new JButton("Kill half");
@@ -123,7 +114,6 @@ public class Main {
             topPanel.add(fast);
             topPanel.add(statistics);
             topPanel.add(signatures);
-            topPanel.add(distribution);
             topPanel.add(addEntity);
             topPanel.add(killHalf);
             topPanel.add(reset);
@@ -140,10 +130,6 @@ public class Main {
         statistics = !statistics;
     }
 
-    private void distribution() {
-        distribution = !distribution;
-    }
-
     private void signatures() {
         signatures = !signatures;
     }
@@ -155,7 +141,8 @@ public class Main {
         countDead = 0;
         deathFromExhaustion = 0;
         deathNatural = 0;
-        deathByKilling = 0;
+        deathByKillingAttacking = 0;
+        deathByKillingDefender = 0;
         deathManually = 0;
         asexualReproduction = 0;
         sexualReproduction = 0;
@@ -224,86 +211,38 @@ public class Main {
             g2.setColor(new Color(255, 255, 255, 255));
             g2.fillRect(0, 0, W, H);
             g2.setColor(new Color(0, 0, 0, 255));
-            if (distribution) {
-                ArrayList<Float> aggressiveness = new ArrayList<>();
-                for (Entity a : entities) {
-                    if (a.alive)
-                        aggressiveness.add(a.aggressiveness);
+            if (statistics) {
+                for (int i = 0; i < entities.size(); i++) {
+                    float a = entities.get(i).aggressiveness;
+                    g2.fillRect(i * 3 + 200, 100 - (int) (a * 50), 1, (int) (a * 50));
                 }
-                Collections.sort(aggressiveness);
-                for (int i = 0; i < aggressiveness.size(); i++) {
-                    float a = aggressiveness.get(i);
-                    g2.fillRect(i * 3 + 400, 100 - (int) (a * 50), 1, (int) (a * 50));
+                for (int i = 0; i < entities.size(); i++) {
+                    float a = entities.get(i).immunity;
+                    g2.fillRect(i * 3 + 200, 150 - (int) (a * 50), 1, (int) (a * 50));
                 }
-                ArrayList<Float> immunity = new ArrayList<>();
-                for (Entity a : entities) {
-                    if (a.alive)
-                        immunity.add(a.immunity);
+                for (int i = 0; i < entities.size(); i++) {
+                    float a = entities.get(i).force;
+                    g2.fillRect(i * 3 + 200, 200 - (int) (a * 50), 1, (int) (a * 50));
                 }
-                Collections.sort(immunity);
-                for (int i = 0; i < immunity.size(); i++) {
-                    float a = immunity.get(i);
-                    g2.fillRect(i * 3 + 400, 150 - (int) (a * 50), 1, (int) (a * 50));
+                for (int i = 0; i < entities.size(); i++) {
+                    float a = entities.get(i).maxSpeed;
+                    g2.fillRect(i * 3 + 200, 250 - (int) (a * 50), 1, (int) (a * 50));
                 }
-                ArrayList<Float> force = new ArrayList<>();
-                for (Entity a : entities) {
-                    if (a.alive)
-                        force.add(a.force);
+                for (int i = 0; i < entities.size(); i++) {
+                    float a = entities.get(i).recoverySpeed;
+                    g2.fillRect(i * 3 + 200, 300 - (int) (a * 50), 1, (int) (a * 50));
                 }
-                Collections.sort(force);
-                for (int i = 0; i < force.size(); i++) {
-                    float a = force.get(i);
-                    g2.fillRect(i * 3 + 400, 200 - (int) (a * 50), 1, (int) (a * 50));
+                for (int i = 0; i < entities.size(); i++) {
+                    float a = entities.get(i).maxHealth;
+                    g2.fillRect(i * 3 + 200, 350 - (int) (a * 50), 1, (int) (a * 50));
                 }
-                ArrayList<Float> maxSpeed = new ArrayList<>();
-                for (Entity a : entities) {
-                    if (a.alive)
-                        maxSpeed.add(a.maxSpeed);
+                for (int i = 0; i < entities.size(); i++) {
+                    float a = entities.get(i).recoveryHealth;
+                    g2.fillRect(i * 3 + 200, 400 - (int) (a * 50), 1, (int) (a * 50));
                 }
-                Collections.sort(maxSpeed);
-                for (int i = 0; i < maxSpeed.size(); i++) {
-                    float a = maxSpeed.get(i);
-                    g2.fillRect(i * 3 + 400, 250 - (int) (a * 50), 1, (int) (a * 50));
-                }
-                ArrayList<Float> recoverySpeed = new ArrayList<>();
-                for (Entity a : entities) {
-                    if (a.alive)
-                        recoverySpeed.add(a.recoverySpeed);
-                }
-                Collections.sort(recoverySpeed);
-                for (int i = 0; i < recoverySpeed.size(); i++) {
-                    float a = recoverySpeed.get(i);
-                    g2.fillRect(i * 3 + 400, 300 - (int) (a * 50), 1, (int) (a * 50));
-                }
-                ArrayList<Float> maxHealth = new ArrayList<>();
-                for (Entity a : entities) {
-                    if (a.alive)
-                        maxHealth.add(a.maxHealth);
-                }
-                Collections.sort(maxHealth);
-                for (int i = 0; i < maxHealth.size(); i++) {
-                    float a = maxHealth.get(i);
-                    g2.fillRect(i * 3 + 400, 350 - (int) (a * 50), 1, (int) (a * 50));
-                }
-                ArrayList<Float> recoveryHealth = new ArrayList<>();
-                for (Entity a : entities) {
-                    if (a.alive)
-                        recoveryHealth.add(a.recoveryHealth);
-                }
-                Collections.sort(recoveryHealth);
-                for (int i = 0; i < recoveryHealth.size(); i++) {
-                    float a = recoveryHealth.get(i);
-                    g2.fillRect(i * 3 + 400, 400 - (int) (a * 50), 1, (int) (a * 50));
-                }
-                ArrayList<Float> maxAge = new ArrayList<>();
-                for (Entity a : entities) {
-                    if (a.alive)
-                        maxAge.add(a.maxAge);
-                }
-                Collections.sort(maxAge);
-                for (int i = 0; i < maxAge.size(); i++) {
-                    float a = maxAge.get(i);
-                    g2.fillRect(i * 3 + 400, 450 - (int) (a * 50), 1, (int) (a * 50));
+                for (int i = 0; i < entities.size(); i++) {
+                    float a = entities.get(i).maxAge;
+                    g2.fillRect(i * 3 + 200, 450 - (int) (a * 50), 1, (int) (a * 50));
                 }
             }
             for (Entity a : entities) {
@@ -311,16 +250,16 @@ public class Main {
                 g2.fillOval((int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)), (int) (radiusEntity * Math.sqrt(a.fullness) * 2), (int) (radiusEntity * Math.sqrt(a.fullness)) * 2);
                 g2.setColor(new Color(0, 0, 0, 255));
                 if (signatures) {
-                    g2.drawString("Ag " + Math.round(a.aggressiveness * 1000) / 1000f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 50);
-                    g2.drawString("Fo " + Math.round(a.force * 1000) / 1000f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 40);
-                    g2.drawString("Im " + Math.round(a.immunity * 1000) / 1000f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 30);
-                    g2.drawString("CH " + Math.round(a.currentHealth * 1000) / 1000f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 20);
-                    g2.drawString("MH " + Math.round(a.maxHealth * 1000) / 1000f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 10);
-                    g2.drawString("RH " + Math.round(a.recoveryHealth * 1000) / 1000f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)));
-                    g2.drawString("CS " + Math.round(a.currentSpeed * 1000) / 1000f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 10);
-                    g2.drawString("MS " + Math.round(a.maxSpeed * 1000) / 1000f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 20);
-                    g2.drawString("RS " + Math.round(a.recoverySpeed * 1000) / 1000f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 30);
-                    g2.drawString("MA " + Math.round(a.maxAge * 1000) / 1000f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 40);
+                    g2.drawString("Ag " + Math.round(a.aggressiveness * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 50);
+                    g2.drawString("Fo " + Math.round(a.force * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 40);
+                    g2.drawString("Im " + Math.round(a.immunity * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 30);
+                    g2.drawString("CH " + Math.round(a.currentHealth * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 20);
+                    g2.drawString("MH " + Math.round(a.maxHealth * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 10);
+                    g2.drawString("RH " + Math.round(a.recoveryHealth * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)));
+                    g2.drawString("CS " + Math.round(a.currentSpeed * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 10);
+                    g2.drawString("MS " + Math.round(a.maxSpeed * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 20);
+                    g2.drawString("RS " + Math.round(a.recoverySpeed * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 30);
+                    g2.drawString("MA " + Math.round(a.maxAge * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 40);
                 }
             }
 
@@ -332,37 +271,30 @@ public class Main {
             if (statistics) {
                 g2.setColor(new Color(255, 0, 0, 255));
                 int countAlive = entities.size() - countDead;
-                g2.drawString("Average aggressiveness: " + Math.round(sumAggressiveness / countAlive * 100) / 100f, 25, 100);
+                g2.drawString("Aggressiveness: ", 25, 100);
                 g2.setColor(new Color(0, 255, 0, 255));
-                g2.drawString("Average immunity: " + Math.round(sumImmunity / countAlive * 100) / 100f, 25, 150);
+                g2.drawString("Immunity: ", 25, 150);
                 g2.setColor(new Color(0, 0, 255, 255));
-                g2.drawString("Average force: " + Math.round(sumForce / countAlive * 100) / 100f, 25, 200);
+                g2.drawString("Force: ", 25, 200);
                 g2.setColor(new Color(0, 0, 0, 255));
-                g2.drawString("Average max speed: " + Math.round(sumMaxSpeed / countAlive * 100) / 100f, 25, 250);
-                g2.drawString("Average recovery speed: " + Math.round(sumRecoverySpeed / countAlive * 100) / 100f, 25, 300);
-                g2.drawString("Average max health: " + Math.round(sumMaxHealth / countAlive * 100) / 100f, 25, 350);
-                g2.drawString("Average recovery health: " + Math.round(sumRecoveryHealth / countAlive * 100) / 100f, 25, 400);
-                g2.drawString("Average max age: " + Math.round(sumMaxAge / countAlive * 100) / 100f, 25, 450);
-                g2.drawString("Death from exhaustion: " + deathFromExhaustion, 25, 500);
-                g2.drawString("Death by killing: " + deathByKilling, 25, 550);
+                g2.drawString("Max speed: ", 25, 250);
+                g2.drawString("Recovery speed: ", 25, 300);
+                g2.drawString("Max health: ", 25, 350);
+                g2.drawString("Recovery health: ", 25, 400);
+                g2.drawString("Max age: ", 25, 450);
+                g2.drawString("Death from exhaustion: " + deathFromExhaustion, 25, 525);
+                g2.drawString("Death by killing attacking: " + deathByKillingAttacking, 25, 550);
+                g2.drawString("Death by killing defenfer: " + deathByKillingDefender, 25, 575);
                 g2.drawString("Death natural: " + deathNatural, 25, 600);
-                g2.drawString("Death manually: " + deathManually, 25, 650);
-                g2.drawString("Asexual reproduction: " + asexualReproduction, 25, 700);
-                g2.drawString("Sexual reproduction: " + sexualReproduction, 25, 750);
+                g2.drawString("Death manually: " + deathManually, 25, 625);
+                g2.drawString("Asexual reproduction: " + asexualReproduction, 25, 650);
+                g2.drawString("Sexual reproduction: " + sexualReproduction, 25, 675);
                 g2.setFont(new Font("default", Font.PLAIN, 10));
             }
         }
 
         private void logic() {
             countCycles++;
-            sumAggressiveness = 0;
-            sumForce = 0;
-            sumMaxSpeed = 0;
-            sumRecoverySpeed = 0;
-            sumImmunity = 0;
-            sumMaxHealth = 0;
-            sumRecoveryHealth = 0;
-            sumMaxAge = 0;
             countDead = 0;
             for (int currentEntityIndex = 0; currentEntityIndex < entities.size(); currentEntityIndex++) {
                 Entity currentEntity = entities.get(currentEntityIndex);
@@ -382,7 +314,7 @@ public class Main {
                         continue;
                     }
                     currentEntity.currentAge++;
-                    if((entities.size() - countDead) <= capacityFactor)
+                    if ((entities.size() - countDead) <= capacityFactor)
                         currentEntity.fullness += coefFullnessIncrease;
                     else
                         currentEntity.fullness += coefFullnessIncrease * capacityFactor / (entities.size() - countDead);
@@ -538,14 +470,14 @@ public class Main {
                                     if (currentEntity.currentHealth > 0) {
                                         currentEntity.fullness += closestFood.fullness * 0.5f;
                                         if (closestFood.alive)
-                                            deathByKilling++;
+                                            deathByKillingAttacking++;
                                         entities.remove(indexClosestFood);
                                         if (indexClosestFood < currentEntityIndex)
                                             currentEntityIndex--;
                                     } else {
                                         closestFood.fullness += currentEntity.fullness * 0.5f;
                                         if (currentEntity.alive)
-                                            deathByKilling++;
+                                            deathByKillingDefender++;
                                         entities.remove(currentEntityIndex);
                                         continue;
                                     }
@@ -601,14 +533,6 @@ public class Main {
                         deathFromExhaustion++;
                         continue;
                     }
-                    sumAggressiveness += currentEntity.aggressiveness;
-                    sumForce += currentEntity.force;
-                    sumMaxSpeed += currentEntity.maxSpeed;
-                    sumRecoverySpeed += currentEntity.recoverySpeed;
-                    sumImmunity += currentEntity.immunity;
-                    sumMaxHealth += currentEntity.maxHealth;
-                    sumRecoveryHealth += currentEntity.recoveryHealth;
-                    sumMaxAge += currentEntity.maxAge;
                 } else
                     countDead++;
             }
