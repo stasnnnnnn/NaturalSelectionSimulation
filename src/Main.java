@@ -1,7 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
+import java.awt.geom.Line2D;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Random;
 
 class Entity  {
@@ -24,7 +24,7 @@ class Entity  {
     public float immunity = 0.5f;
     public float force = 0.5f;
     public int currentAge;
-    public float maxAge = 0.5f;
+    public float lifeSpan = 0.5f;
     public boolean alive = true;
     public boolean estrus = false;
     public int currentEstrusDuration;
@@ -63,7 +63,7 @@ public class Main {
     final int maxLifeSpan = 262144;
     final float coefNaturalDead = 0.0001f;
     final float minFullness = 1 / 4f;
-    final float capacityFactor = 50f;
+    final float capacityFactor = 16f;
     final float maxDist = sightDistance * sightDistance;
     final float maxDistPartner = radiusEntity * radiusEntity;
     ArrayList<Entity> entities = new ArrayList<>();
@@ -147,6 +147,7 @@ public class Main {
         asexualReproduction = 0;
         sexualReproduction = 0;
         signatures = false;
+        statistics = false;
         play = true;
     }
 
@@ -211,6 +212,43 @@ public class Main {
             g2.setColor(new Color(255, 255, 255, 255));
             g2.fillRect(0, 0, W, H);
             g2.setColor(new Color(0, 0, 0, 255));
+            for (Entity a : entities) {
+                g2.setColor(new Color(Math.round(a.aggressiveness * 255), Math.round(a.immunity * 255), Math.round(a.force * 255), Math.round(a.currentHealth * 255)));
+                g2.fillOval((int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)), (int) (radiusEntity * Math.sqrt(a.fullness) * 2), (int) (radiusEntity * Math.sqrt(a.fullness)) * 2);
+                g2.setColor(new Color(0, 0, 0));
+                if (!a.alive) {
+                    g2.setColor(new Color(255, 255, 255));
+                    g2.fillOval((int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)), (int) (radiusEntity * Math.sqrt(a.fullness) * 2), (int) (radiusEntity * Math.sqrt(a.fullness)) * 2);
+                    g2.setColor(new Color(0, 0, 0));
+                    g2.drawOval((int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)), (int) (radiusEntity * Math.sqrt(a.fullness) * 2), (int) (radiusEntity * Math.sqrt(a.fullness)) * 2);
+                }
+                if (a.useMaxSpeed) {
+                    g2.draw(new Line2D.Double((int) (a.x - radiusEntity * Math.sqrt(a.fullness) + radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)), (int) (a.x - radiusEntity * Math.sqrt(a.fullness) + radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness) + radiusEntity * Math.sqrt(a.fullness) * 2)));
+                    g2.draw(new Line2D.Double((int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness) + radiusEntity * Math.sqrt(a.fullness)), (int) (a.x - radiusEntity * Math.sqrt(a.fullness) + radiusEntity * Math.sqrt(a.fullness) * 2), (int) (a.y - radiusEntity * Math.sqrt(a.fullness) + radiusEntity * Math.sqrt(a.fullness))));
+                }
+                if (a.estrus)
+                    g2.drawOval((int) (a.x - radiusEntity * Math.sqrt(a.fullness) + radiusEntity * Math.sqrt(a.fullness)) - 2, (int) (a.y - radiusEntity * Math.sqrt(a.fullness) + radiusEntity * Math.sqrt(a.fullness)) - 2, 3, 3);
+                if (a.pregnancy)
+                    g2.drawOval((int) (a.x - radiusEntity * Math.sqrt(a.fullness) + radiusEntity * Math.sqrt(a.fullness) / 2), (int) (a.y - radiusEntity * Math.sqrt(a.fullness) + radiusEntity * Math.sqrt(a.fullness) / 2), (int) (radiusEntity * Math.sqrt(a.fullness)), (int) (radiusEntity * Math.sqrt(a.fullness)));
+                g2.setColor(new Color(0, 0, 0, 255));
+                if (signatures) {
+                    g2.drawString("Ag " + Math.round(a.aggressiveness * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 30);
+                    g2.drawString("Fo " + Math.round(a.force * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 20);
+                    g2.drawString("Im " + Math.round(a.immunity * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 10);
+                    g2.drawString("MH " + Math.round(a.maxHealth * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)));
+                    g2.drawString("RH " + Math.round(a.recoveryHealth * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 10);
+                    g2.drawString("MS " + Math.round(a.maxSpeed * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 20);
+                    g2.drawString("RS " + Math.round(a.recoverySpeed * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 30);
+                    g2.drawString("LS " + Math.round(a.lifeSpan * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 40);
+                    g2.drawString("CH " + Math.round(a.currentHealth * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 50);
+                    g2.drawString("CS " + Math.round(a.currentSpeed * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 60);
+                }
+            }
+            g2.setFont(new Font("default", Font.BOLD, 16));
+            g2.setColor(new Color(0, 0, 0, 255));
+            g2.drawString("Count cycles: " + countCycles, 25, 25);
+            g2.drawString("Count entities: " + entities.size(), 275, 25);
+            g2.drawString("Current speed rendering: " + logicOnRenderingRate, 525, 25);
             if (statistics) {
                 for (int i = 0; i < entities.size(); i++) {
                     float a = entities.get(i).aggressiveness;
@@ -241,36 +279,14 @@ public class Main {
                     g2.fillRect(i * 3 + 200, 400 - (int) (a * 50), 1, (int) (a * 50));
                 }
                 for (int i = 0; i < entities.size(); i++) {
-                    float a = entities.get(i).maxAge;
+                    float a = entities.get(i).lifeSpan;
                     g2.fillRect(i * 3 + 200, 450 - (int) (a * 50), 1, (int) (a * 50));
                 }
-            }
-            for (Entity a : entities) {
-                g2.setColor(new Color(Math.round(a.aggressiveness * 255), Math.round(a.immunity * 255), Math.round(a.force * 255), Math.round(a.currentHealth * 255)));
-                g2.fillOval((int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)), (int) (radiusEntity * Math.sqrt(a.fullness) * 2), (int) (radiusEntity * Math.sqrt(a.fullness)) * 2);
-                g2.setColor(new Color(0, 0, 0, 255));
-                if (signatures) {
-                    g2.drawString("Ag " + Math.round(a.aggressiveness * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 50);
-                    g2.drawString("Fo " + Math.round(a.force * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 40);
-                    g2.drawString("Im " + Math.round(a.immunity * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 30);
-                    g2.drawString("CH " + Math.round(a.currentHealth * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 20);
-                    g2.drawString("MH " + Math.round(a.maxHealth * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) - 10);
-                    g2.drawString("RH " + Math.round(a.recoveryHealth * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)));
-                    g2.drawString("CS " + Math.round(a.currentSpeed * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 10);
-                    g2.drawString("MS " + Math.round(a.maxSpeed * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 20);
-                    g2.drawString("RS " + Math.round(a.recoverySpeed * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 30);
-                    g2.drawString("MA " + Math.round(a.maxAge * 100) / 100f, (int) (a.x - radiusEntity * Math.sqrt(a.fullness)), (int) (a.y - radiusEntity * Math.sqrt(a.fullness)) + 40);
+                for (int i = 0; i < entities.size(); i++) {
+                    float a = entities.get(i).fullness / 5;
+                    g2.fillRect(i * 3 + 200, 500 - (int) (a * 50), 1, (int) (a * 50));
                 }
-            }
-
-            g2.setFont(new Font("default", Font.BOLD, 16));
-            g2.setColor(new Color(0, 0, 0, 255));
-            g2.drawString("Count cycles: " + countCycles, 25, 25);
-            g2.drawString("Count entities: " + entities.size(), 275, 25);
-            g2.drawString("Current speed rendering: " + logicOnRenderingRate, 525, 25);
-            if (statistics) {
                 g2.setColor(new Color(255, 0, 0, 255));
-                int countAlive = entities.size() - countDead;
                 g2.drawString("Aggressiveness: ", 25, 100);
                 g2.setColor(new Color(0, 255, 0, 255));
                 g2.drawString("Immunity: ", 25, 150);
@@ -281,14 +297,15 @@ public class Main {
                 g2.drawString("Recovery speed: ", 25, 300);
                 g2.drawString("Max health: ", 25, 350);
                 g2.drawString("Recovery health: ", 25, 400);
-                g2.drawString("Max age: ", 25, 450);
-                g2.drawString("Death from exhaustion: " + deathFromExhaustion, 25, 525);
-                g2.drawString("Death by killing attacking: " + deathByKillingAttacking, 25, 550);
-                g2.drawString("Death by killing defenfer: " + deathByKillingDefender, 25, 575);
-                g2.drawString("Death natural: " + deathNatural, 25, 600);
-                g2.drawString("Death manually: " + deathManually, 25, 625);
-                g2.drawString("Asexual reproduction: " + asexualReproduction, 25, 650);
-                g2.drawString("Sexual reproduction: " + sexualReproduction, 25, 675);
+                g2.drawString("Life span: ", 25, 450);
+                g2.drawString("Fullness: ", 25, 500);
+                g2.drawString("Death from exhaustion: " + deathFromExhaustion, 25, 575);
+                g2.drawString("Death by killing attacking: " + deathByKillingAttacking, 25, 600);
+                g2.drawString("Death by killing defender: " + deathByKillingDefender, 25, 625);
+                g2.drawString("Death natural: " + deathNatural, 25, 650);
+                g2.drawString("Death manually: " + deathManually, 25, 675);
+                g2.drawString("Asexual reproduction: " + asexualReproduction, 25, 700);
+                g2.drawString("Sexual reproduction: " + sexualReproduction, 25, 725);
                 g2.setFont(new Font("default", Font.PLAIN, 10));
             }
         }
@@ -308,7 +325,7 @@ public class Main {
                             e.tmpStatus = Entity.Status.insider;
                         e.tmpCheckDist = checkDist(currentEntity, e, sightDistance);
                     }
-                    if (Math.random() < coefNaturalDead * (1 - currentEntity.immunity) * (currentEntity.currentAge / (maxLifeSpan * currentEntity.maxAge))) {
+                    if (Math.random() < coefNaturalDead * (1 - currentEntity.immunity) * (currentEntity.currentAge / (maxLifeSpan * currentEntity.lifeSpan))) {
                         dead(currentEntity);
                         deathNatural++;
                         continue;
@@ -448,6 +465,11 @@ public class Main {
                                 currentEntity.ty = -closestFemalePartner.y + currentEntity.y;
                             else
                                 currentEntity.ty = closestFemalePartner.y - currentEntity.y;
+                            if ((Math.abs(closestFemalePartner.x - currentEntity.x) < radiusEntity
+                                    | (Math.abs(closestFemalePartner.x - currentEntity.x) > W - radiusEntity))
+                                    & (Math.abs(closestFemalePartner.y - currentEntity.y) < radiusEntity
+                                    | (Math.abs(closestFemalePartner.y - currentEntity.y) > H - radiusEntity)))
+                                currentEntity.useMaxSpeed = false;
                         } else {
                             if (closestFood != null) {
                                 if (Math.abs(closestFood.x - currentEntity.x) > sightDistance)
@@ -527,11 +549,10 @@ public class Main {
                     currentEntity.fullness -= getCost(currentEntity.recoverySpeed) * coefFullnessChange;
                     currentEntity.fullness -= getCost(currentEntity.maxHealth) * coefFullnessChange;
                     currentEntity.fullness -= getCost(currentEntity.recoveryHealth) * coefFullnessChange;
-                    currentEntity.fullness -= getCost(currentEntity.maxAge) * coefFullnessChange;
+                    currentEntity.fullness -= getCost(currentEntity.lifeSpan) * coefFullnessChange;
                     if (currentEntity.fullness <= minFullness) {
                         dead(currentEntity);
                         deathFromExhaustion++;
-                        continue;
                     }
                 } else
                     countDead++;
@@ -553,7 +574,7 @@ public class Main {
                 newEntity.recoverySpeed = currentEntity.recoverySpeed;
                 newEntity.maxHealth = currentEntity.maxHealth;
                 newEntity.recoveryHealth = currentEntity.recoveryHealth;
-                newEntity.maxAge = currentEntity.maxAge;
+                newEntity.lifeSpan = currentEntity.lifeSpan;
                 asexualReproduction++;
             } else {
                 newEntity.aggressiveness = getHybrid(currentEntity.aggressiveness, currentEntity.malePartner.aggressiveness);
@@ -563,7 +584,7 @@ public class Main {
                 newEntity.recoverySpeed = getHybrid(currentEntity.recoverySpeed, currentEntity.malePartner.recoverySpeed);
                 newEntity.maxHealth = getHybrid(currentEntity.maxHealth, currentEntity.malePartner.maxHealth);
                 newEntity.recoveryHealth = getHybrid(currentEntity.recoveryHealth, currentEntity.malePartner.recoveryHealth);
-                newEntity.maxAge = getHybrid(currentEntity.maxAge, currentEntity.malePartner.maxAge);
+                newEntity.lifeSpan = getHybrid(currentEntity.lifeSpan, currentEntity.malePartner.lifeSpan);
                 sexualReproduction++;
             }
             if (Math.random() < chanceMutation)
@@ -590,7 +611,7 @@ public class Main {
                         newEntity.recoveryHealth = getMutation(newEntity.recoveryHealth);
                         break;
                     case 8:
-                        newEntity.maxAge = getMutation(newEntity.maxAge);
+                        newEntity.lifeSpan = getMutation(newEntity.lifeSpan);
                         break;
                 }
             newEntity.currentSpeed = newEntity.maxSpeed;
@@ -639,8 +660,8 @@ public class Main {
             costCur = getCost(currentEntity.recoveryHealth);
             if (Math.max(costE, costCur) / Math.min(costE, costCur) > 2f)
                 return false;
-            costE = getCost(e.maxAge);
-            costCur = getCost(currentEntity.maxAge);
+            costE = getCost(e.lifeSpan);
+            costCur = getCost(currentEntity.lifeSpan);
             if (Math.max(costE, costCur) / Math.min(costE, costCur) > 2f)
                 return false;
             return true;
@@ -675,8 +696,8 @@ public class Main {
             costCur = getCost(currentEntity.recoveryHealth);
             if (Math.max(costE, costCur) / Math.min(costE, costCur) > 3f)
                 return true;
-            costE = getCost(e.maxAge);
-            costCur = getCost(currentEntity.maxAge);
+            costE = getCost(e.lifeSpan);
+            costCur = getCost(currentEntity.lifeSpan);
             if (Math.max(costE, costCur) / Math.min(costE, costCur) > 3f)
                 return true;
             return false;
